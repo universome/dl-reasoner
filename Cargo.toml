@@ -1,0 +1,6 @@
+[package]
+name = "dl-reasoner"
+version = "0.1.0"
+authors = ["Ivan Skorokhodov <iskorokhodov@gmail.com>"]
+
+[dependencies]
