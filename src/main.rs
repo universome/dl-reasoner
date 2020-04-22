@@ -3,18 +3,25 @@
 use std::env;
 use std::fs;
 
+mod abox;
+mod tbox;
+mod common;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let query = &args[1];
-    let filename = &args[2];
+    let filename = &args[1];
 
-    println!("Searching for {}", query);
-    // --snip--
-    println!("In file {}", filename);
+    println!("File {}", filename);
+    // let string = "SUPERSTRING";
+    // println!("SUPERSTRING? {}", string.chars().skip(60).collect::<String>());
+    // println!("SUPERSTRING? {}", string.chars().take(60).collect::<String>());
 
     let contents = fs::read_to_string(filename)
         .expect("Something went wrong reading the file");
 
-    println!("With text:\n{}", contents);
+    let a = abox::parse_abox(&contents);
+
+    // println!("With text:\n{}", contents);
+    println!("ABOX: {:#?}", a);
 }
