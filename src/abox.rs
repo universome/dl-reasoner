@@ -43,7 +43,7 @@ pub fn parse_abox_axiom(axiom_str: &str) -> ABoxAxiom {
     let axiom_str = axiom_str.trim();
     let start_idx = axiom_str.find("[").unwrap_or(0);
     let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
-    let arguments_str = &axiom_str[start_idx..end_idx + 1].trim();
+    let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
     println!("arguments string: {}", arguments_str);
     let mut individuals = arguments_str
         .split(",").map(|n| (Individual {name: n.to_string()}))
@@ -54,7 +54,7 @@ pub fn parse_abox_axiom(axiom_str: &str) -> ABoxAxiom {
         ABoxAxiom::Relation(RelationAxiom {
             relation: Relation { name: axiom_str[..start_idx].to_string() },
             lhs: individuals.remove(0),
-            rhs: individuals.remove(1),
+            rhs: individuals.remove(0),
         })
     } else {
         // This is a concept axiom
