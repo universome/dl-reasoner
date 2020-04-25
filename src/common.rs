@@ -1,4 +1,13 @@
-use std::rc::Rc;
+use std::fmt::Debug;
+use std::clone::Clone;
+
+pub trait Concept: Debug {}
+
+// impl Debug for dyn Concept {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         write!(f, "Concept{{{}}}", self.len())
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Relation { pub name: String }
@@ -7,50 +16,46 @@ pub struct Relation { pub name: String }
 pub struct Individual { pub name: String }
 
 #[derive(Debug)]
-pub enum Concept {
-    Atomic(AtomicConcept),
-    Not(NotConcept),
-    Conjunction(ConjunctionConcept),
-    Disjunction(DisjunctionConcept),
-    Only(OnlyConcept),
-    Some(SomeConcept)
+struct AtomicConcept {
+    name: String
 }
 
 #[derive(Debug)]
-pub struct AtomicConcept {
-    pub name: String
+struct NotConcept {
+    subconcept: Box<dyn Concept>
 }
 
 #[derive(Debug)]
-pub struct NotConcept {
-    pub concept: Rc<Concept>
+struct ConjunctionConcept {
+    subconcepts: Vec<Box<dyn Concept>>
 }
 
 #[derive(Debug)]
-pub struct ConjunctionConcept {
-    pub concepts: Rc<Vec<Concept>>
+struct DisjunctionConcept {
+    subconcepts: Vec<Box<dyn Concept>>
 }
 
 #[derive(Debug)]
-pub struct DisjunctionConcept {
-    pub concepts: Rc<Vec<Concept>>
+struct OnlyConcept {
+    subconcept: Box<dyn Concept>,
+    relation: Relation
 }
 
 #[derive(Debug)]
-pub struct OnlyConcept {
-    pub concept: Rc<Concept>,
-    pub relation: Relation
+struct SomeConcept {
+    subconcept: Box<dyn Concept>,
+    relation: Relation
 }
 
-#[derive(Debug)]
-pub struct SomeConcept {
-    pub concept: Rc<Concept>,
-    pub relation: Relation
-}
+impl Concept for AtomicConcept {}
+impl Concept for NotConcept {}
+impl Concept for ConjunctionConcept {}
+impl Concept for DisjunctionConcept {}
+impl Concept for OnlyConcept {}
+impl Concept for SomeConcept {}
 
 
-
-pub fn parse_concept(concept_str: &str) -> Concept {
+pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
     // Parses concept or panics if the string is not a correct concept
     // let mut words = concept_str.split(' ').collect();
     let concept_str = concept_str.trim();
@@ -62,39 +67,39 @@ pub fn parse_concept(concept_str: &str) -> Concept {
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
         // println!("It is and!");
-        Concept::Conjunction(ConjunctionConcept { concepts: Rc::new(extract_concepts(&concept_str[3..])) })
+        Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
         // println!("It is or!");
-        Concept::Disjunction(DisjunctionConcept { concepts: Rc::new(extract_concepts(&concept_str[2..])) })
+        Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
         // println!("It is only!");
-        Concept::Only(OnlyConcept {
+        Box::new(OnlyConcept {
             relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            concept: Rc::new(parse_concept(&concept_str[6..]))
+            subconcept: parse_concept(&concept_str[6..])
         })
     } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
         // println!("It is some!");
-        Concept::Some(SomeConcept {
+        Box::new(SomeConcept {
             relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            concept: Rc::new(parse_concept(&concept_str[6..]))
+            subconcept: parse_concept(&concept_str[6..])
         })
     } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
         // println!("It is not!");
-        Concept::Not(NotConcept { concept: Rc::new(parse_concept(&concept_str[2..])) })
+        Box::new(NotConcept { subconcept: parse_concept(&concept_str[2..]) })
     } else {
         // println!("It is an atomic concept!");
         // This is an Atomic Concept!
-        Concept::Atomic(AtomicConcept { name: concept_str.to_string() })
+        Box::new(AtomicConcept { name: concept_str.to_string() })
     }
 }
 
 
-fn extract_concepts(concepts_str: &str) -> Vec<Concept> {
+fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
     // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
     // parses them individually and returns a vector of concepts.
     let concepts_str = concepts_str.trim();
     println!("Extractinc concepts: {}", concepts_str);
-    let mut concepts: Vec<Concept> = Vec::new();
+    let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
     let mut curr_depth = 0;
     let mut curr_concept_start_idx = 0;
     let mut i = 0;

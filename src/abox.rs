@@ -3,30 +3,33 @@
     "C[x]", "r[x, y]", "(some r C)[x]", etc.
     This makes parsing easy without the loss of readability
 */
+use std::fmt::Debug;
+use std::clone::Clone;
 use std::string;
 use common::{Individual, Relation, Concept, parse_concept};
 
+
+pub trait ABoxAxiom: Debug {}
+
+
 #[derive(Debug)]
-pub enum ABoxAxiom {
-    Concept(ConceptAxiom),
-    Relation(RelationAxiom)
+struct ConceptAxiom {
+    concept: Box<dyn Concept>,
+    individual: Individual
 }
 
 #[derive(Debug)]
-pub struct RelationAxiom {
-    pub relation: Relation,
-    pub lhs: Individual,
-    pub rhs: Individual,
+struct RelationAxiom {
+    relation: Relation,
+    lhs: Individual,
+    rhs: Individual,
 }
 
-#[derive(Debug)]
-pub struct ConceptAxiom {
-    pub concept: Concept,
-    pub individual: Individual
-}
+impl ABoxAxiom for ConceptAxiom {}
+impl ABoxAxiom for RelationAxiom {}
 
 
-pub fn parse_abox(abox_str: &str) -> Vec<ABoxAxiom> {
+pub fn parse_abox(abox_str: &str) -> Vec<Box<dyn ABoxAxiom>> {
     let abox_str = abox_str.trim();
     let mut abox_axioms = Vec::new();
 
@@ -39,7 +42,7 @@ pub fn parse_abox(abox_str: &str) -> Vec<ABoxAxiom> {
 }
 
 
-pub fn parse_abox_axiom(axiom_str: &str) -> ABoxAxiom {
+pub fn parse_abox_axiom(axiom_str: &str) -> Box<dyn ABoxAxiom> {
     let axiom_str = axiom_str.trim();
     let start_idx = axiom_str.find("[").unwrap_or(0);
     let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
@@ -51,14 +54,14 @@ pub fn parse_abox_axiom(axiom_str: &str) -> ABoxAxiom {
 
     if arguments_str.contains(",") {
         // This is a relation axiom
-        ABoxAxiom::Relation(RelationAxiom {
+        Box::new(RelationAxiom {
             relation: Relation { name: axiom_str[..start_idx].to_string() },
             lhs: individuals.remove(0),
             rhs: individuals.remove(0),
         })
     } else {
         // This is a concept axiom
-        ABoxAxiom::Concept(ConceptAxiom {
+        Box::new(ConceptAxiom {
             concept: parse_concept(&axiom_str[..start_idx]),
             individual: individuals.remove(0)
         })
