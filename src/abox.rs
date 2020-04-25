@@ -62,7 +62,7 @@ pub fn parse_abox_axiom(axiom_str: &str) -> Box<dyn ABoxAxiom> {
     } else {
         // This is a concept axiom
         Box::new(ConceptAxiom {
-            concept: parse_concept(&axiom_str[..start_idx]),
+            concept: parse_concept(&axiom_str[..start_idx]).convert_to_nnf(),
             individual: individuals.remove(0)
         })
     }

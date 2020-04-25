@@ -2,7 +2,9 @@
 
 use std::env;
 use std::fs;
-// use std::core;
+
+#[macro_use]
+extern crate mopa;
 
 mod abox;
 mod tbox;

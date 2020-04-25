@@ -1,58 +1,153 @@
 use std::fmt::Debug;
 use std::clone::Clone;
+use std::any::{Any, TypeId};
+use std::marker::Sized;
 
-pub trait Concept: Debug {}
 
-// impl Debug for dyn Concept {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         write!(f, "Concept{{{}}}", self.len())
-//     }
-// }
+pub trait Concept: Debug + mopa::Any + ConceptClone {
+    fn convert_to_nnf(&self) -> Box<dyn Concept>;
 
-#[derive(Debug)]
-pub struct Relation { pub name: String }
-
-#[derive(Debug)]
-pub struct Individual { pub name: String }
-
-#[derive(Debug)]
-struct AtomicConcept {
-    name: String
+    fn negate(&self) -> Box<dyn Concept> {
+        // Box::new(NotConcept{ subconcept: Box::new(self.clone()) })
+        Box::new(NotConcept{ subconcept: Box::new(self).clone_box() })
+    }
 }
 
-#[derive(Debug)]
-struct NotConcept {
+pub trait ConceptClone {
+    fn clone_box(&self) -> Box<dyn Concept>;
+}
+
+impl<T> ConceptClone for T where T: Concept + Clone {
+    fn clone_box(&self) -> Box<dyn Concept> { Box::new(self.clone()) }
+}
+
+// We can now implement Clone manually by forwarding to clone_box.
+impl Clone for Box<dyn Concept> {
+    fn clone(&self) -> Box<dyn Concept> { self.clone_box() }
+}
+
+mopafy!(Concept);
+
+#[derive(Debug, Clone)]
+pub struct Relation { pub name: String }
+
+#[derive(Debug, Clone)]
+pub struct Individual { pub name: String }
+
+#[derive(Debug, Clone)]
+pub struct AtomicConcept { name: String }
+
+#[derive(Debug, Clone)]
+pub struct NotConcept {
     subconcept: Box<dyn Concept>
 }
 
-#[derive(Debug)]
-struct ConjunctionConcept {
+#[derive(Debug, Clone)]
+pub struct ConjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-#[derive(Debug)]
-struct DisjunctionConcept {
+#[derive(Debug, Clone)]
+pub struct DisjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-#[derive(Debug)]
-struct OnlyConcept {
+#[derive(Debug, Clone)]
+pub struct OnlyConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-#[derive(Debug)]
-struct SomeConcept {
+#[derive(Debug, Clone)]
+pub struct SomeConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-impl Concept for AtomicConcept {}
-impl Concept for NotConcept {}
-impl Concept for ConjunctionConcept {}
-impl Concept for DisjunctionConcept {}
-impl Concept for OnlyConcept {}
-impl Concept for SomeConcept {}
+impl Concept for AtomicConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(self.clone())
+    }
+}
+
+impl Concept for NotConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        if self.subconcept.is::<AtomicConcept>() {
+            let subconcept = self.subconcept.downcast_ref::<AtomicConcept>().unwrap();
+            Box::new(NotConcept { subconcept: Box::new(subconcept.clone()) })
+        } else if self.subconcept.is::<NotConcept>() {
+            let subconcept = self.subconcept.downcast_ref::<NotConcept>().unwrap();
+            subconcept.subconcept.convert_to_nnf()
+        } else if self.subconcept.is::<ConjunctionConcept>() {
+            // not and (A B C) => or ((not A) (not B) (not C))
+            let subconcept = self.subconcept.downcast_ref::<ConjunctionConcept>().unwrap();
+            // Box::new(AtomicConcept { name: "123".to_string() })
+            Box::new(DisjunctionConcept {
+                subconcepts: subconcept.clone().subconcepts.iter()
+                    .map(|c| { c.negate() })
+                    .map(|c| {c.convert_to_nnf()})
+                    .collect()
+            })
+        } else if self.subconcept.is::<DisjunctionConcept>() {
+            // not [or (A B C)] => and ((not A) (not B) (not C))
+            let subconcept = self.subconcept.downcast_ref::<DisjunctionConcept>().unwrap();
+            Box::new(ConjunctionConcept {
+                subconcepts: subconcept.clone().subconcepts.iter()
+                    .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
+                    .map(|c| {c.convert_to_nnf()})
+                    .collect()
+            })
+        } else if self.subconcept.is::<OnlyConcept>() {
+            // not [only A] => some [not A]
+            let subconcept = self.subconcept.downcast_ref::<OnlyConcept>().unwrap();
+            Box::new(SomeConcept {
+                relation: subconcept.relation.clone(),
+                subconcept: subconcept.subconcept.negate().convert_to_nnf()
+            })
+        } else if self.subconcept.is::<SomeConcept>() {
+            // not [some A] => only [not A]
+            let subconcept = self.subconcept.downcast_ref::<SomeConcept>().unwrap();
+            Box::new(OnlyConcept {
+                relation: subconcept.relation.clone(),
+                subconcept: subconcept.subconcept.negate().convert_to_nnf()
+            })
+        } else {
+            unimplemented!();
+        }
+
+
+    }
+}
+impl Concept for ConjunctionConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(ConjunctionConcept {
+            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
+        })
+    }
+}
+impl Concept for DisjunctionConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(DisjunctionConcept {
+            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
+        })
+    }
+}
+impl Concept for OnlyConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(OnlyConcept {
+            relation: self.relation.clone(),
+            subconcept: self.subconcept.convert_to_nnf()
+        })
+    }
+}
+impl Concept for SomeConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(SomeConcept {
+            relation: self.relation.clone(),
+            subconcept: self.subconcept.convert_to_nnf()
+        })
+    }
+}
 
 
 pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
@@ -84,10 +179,10 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
             subconcept: parse_concept(&concept_str[6..])
         })
     } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
-        // println!("It is not!");
-        Box::new(NotConcept { subconcept: parse_concept(&concept_str[2..]) })
+        println!("It is not!");
+        Box::new(NotConcept { subconcept: parse_concept(&concept_str[3..]) })
     } else {
-        // println!("It is an atomic concept!");
+        println!("It is an atomic concept!");
         // This is an Atomic Concept!
         Box::new(AtomicConcept { name: concept_str.to_string() })
     }
