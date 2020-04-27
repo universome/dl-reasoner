@@ -4,15 +4,20 @@
     This makes parsing easy without the loss of readability
 */
 use std::fmt;
+use std::hash;
 use std::clone::Clone;
 use std::string;
+use std::collections::HashSet;
+
 use concept::{Individual, Relation, Concept, parse_concept};
+
 
 pub enum ABoxAxiomType { Concept, Relation }
 
 #[derive(Debug)]
 pub struct ABox {
-    pub axioms: Vec<Box<dyn ABoxAxiom>>
+    pub axioms: HashSet<Box<dyn ABoxAxiom>>
+    // pub axioms: Vec<Box<dyn ABoxAxiom>>
 }
 
 impl fmt::Display for ABox {
@@ -26,7 +31,21 @@ pub trait ABoxAxiom: fmt::Debug + fmt::Display + mopa::Any {
 }
 mopafy!(ABoxAxiom);
 
-#[derive(Debug, Clone)]
+impl hash::Hash for dyn ABoxAxiom {
+    fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
+        self.to_string().hash(hasher);
+    }
+}
+
+impl PartialEq for dyn ABoxAxiom {
+    fn eq(&self, other: &dyn ABoxAxiom) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for dyn ABoxAxiom {}
+
+#[derive(Debug, Clone, Hash)]
 pub struct ConceptAxiom {
     pub concept: Box<dyn Concept>,
     pub individual: Individual
@@ -42,7 +61,7 @@ impl ABoxAxiom for ConceptAxiom {
     fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Concept }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct RelationAxiom {
     pub relation: Relation,
     pub lhs: Individual,
@@ -68,11 +87,11 @@ impl ABoxAxiom for RelationAxiom {
 
 pub fn parse_abox(abox_str: &str) -> ABox {
     let abox_str = abox_str.trim();
-    let mut abox = ABox {axioms: vec![]};
+    let mut abox = ABox {axioms: HashSet::new()};
 
     for line in abox_str.lines() {
         println!("Parsing line: {}", line);
-        abox.axioms.push(parse_abox_axiom(&line))
+        abox.axioms.insert(parse_abox_axiom(&line));
     }
 
     abox
