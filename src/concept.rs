@@ -1,4 +1,5 @@
 use std::fmt;
+use std::hash;
 use std::clone::Clone;
 use std::any::{Any, TypeId};
 use std::marker::Sized;
@@ -19,6 +20,20 @@ pub trait Concept: fmt::Debug + fmt::Display + mopa::Any + ConceptClone {
 
 mopafy!(Concept);
 
+impl hash::Hash for dyn Concept {
+    fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
+        self.to_string().hash(hasher);
+    }
+}
+
+impl PartialEq for dyn Concept {
+    fn eq(&self, other: &dyn Concept) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for dyn Concept {}
+
 pub trait ConceptClone {
     fn clone_box(&self) -> Box<dyn Concept>;
 }
@@ -32,7 +47,7 @@ impl Clone for Box<dyn Concept> {
     fn clone(&self) -> Box<dyn Concept> { self.clone_box() }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Relation { pub name: String }
 
 impl fmt::Display for Relation {
@@ -41,10 +56,10 @@ impl fmt::Display for Relation {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Individual { pub name: String }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct AtomicConcept { name: String }
 
 impl Concept for AtomicConcept {
@@ -60,7 +75,7 @@ impl fmt::Display for AtomicConcept {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct NotConcept {
     subconcept: Box<dyn Concept>
 }
@@ -126,7 +141,7 @@ impl Concept for NotConcept {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct ConjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
@@ -147,7 +162,7 @@ impl Concept for ConjunctionConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Conjunction }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct DisjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
@@ -168,7 +183,7 @@ impl Concept for DisjunctionConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Disjunction }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct OnlyConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
@@ -191,7 +206,7 @@ impl Concept for OnlyConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Only }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct SomeConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
