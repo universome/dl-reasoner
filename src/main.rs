@@ -7,9 +7,9 @@ use std::fs;
 extern crate mopa;
 
 mod abox;
-mod tbox;
-mod common;
-// mod nnf;
+// mod tbox;
+mod concept;
+// mod reasoner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

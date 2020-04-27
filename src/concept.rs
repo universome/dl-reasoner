@@ -1,10 +1,10 @@
-use std::fmt::Debug;
+use std::fmt;
 use std::clone::Clone;
 use std::any::{Any, TypeId};
 use std::marker::Sized;
 
 
-pub trait Concept: Debug + mopa::Any + ConceptClone {
+pub trait Concept: fmt::Debug + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
 
     fn negate(&self) -> Box<dyn Concept> {
@@ -28,45 +28,87 @@ impl Clone for Box<dyn Concept> {
 
 mopafy!(Concept);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Relation { pub name: String }
+
+impl fmt::Debug for Relation {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}(x, y)", self.name)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Individual { pub name: String }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AtomicConcept { name: String }
 
-#[derive(Debug, Clone)]
+impl Concept for AtomicConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(self.clone())
+    }
+}
+
+impl fmt::Debug for AtomicConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
+#[derive(Clone)]
 pub struct NotConcept {
     subconcept: Box<dyn Concept>
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for NotConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "not {:?}", self.subconcept)
+    }
+}
+
+#[derive(Clone)]
 pub struct ConjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for ConjunctionConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "and ({:?})", self.subconcepts)
+    }
+}
+
+#[derive(Clone)]
 pub struct DisjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for DisjunctionConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "or ({:?})", self.subconcepts)
+    }
+}
+
+#[derive(Clone)]
 pub struct OnlyConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for OnlyConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "only {} {:?}", self.relation.name, self.subconcept)
+    }
+}
+
+#[derive(Clone)]
 pub struct SomeConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-impl Concept for AtomicConcept {
-    fn convert_to_nnf(&self) -> Box<dyn Concept> {
-        Box::new(self.clone())
+impl fmt::Debug for SomeConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "some {} {:?}", self.relation.name, self.subconcept)
     }
 }
 

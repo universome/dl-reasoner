@@ -1,1 +1,3 @@
-use common::{Concept, Relation};
+use concept::{Concept, Relation};
+
+pub struct TBox {}

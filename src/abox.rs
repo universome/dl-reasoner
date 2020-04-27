@@ -3,26 +3,39 @@
     "C[x]", "r[x, y]", "(some r C)[x]", etc.
     This makes parsing easy without the loss of readability
 */
-use std::fmt::Debug;
+use std::fmt;
 use std::clone::Clone;
 use std::string;
-use common::{Individual, Relation, Concept, parse_concept};
+use concept::{Individual, Relation, Concept, parse_concept};
 
+// pub struct ABox {
+//     mut axioms: Vec<Box<dyn ABoxAxiom>>,
+//     mut set:
+// }
 
-pub trait ABoxAxiom: Debug {}
+pub trait ABoxAxiom: fmt::Debug {}
 
-
-#[derive(Debug)]
 struct ConceptAxiom {
     concept: Box<dyn Concept>,
     individual: Individual
 }
 
-#[derive(Debug)]
+impl fmt::Debug for ConceptAxiom {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "({:?})[{}]", self.concept, self.individual.name)
+    }
+}
+
 struct RelationAxiom {
     relation: Relation,
     lhs: Individual,
     rhs: Individual,
+}
+
+impl fmt::Debug for RelationAxiom {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}({}, {})", self.relation.name, self.lhs.name, self.rhs.name)
+    }
 }
 
 impl ABoxAxiom for ConceptAxiom {}
