@@ -4,8 +4,13 @@ use std::any::{Any, TypeId};
 use std::marker::Sized;
 
 
+pub enum ConceptType {Atomic, Not, Conjunction, Disjunction, Some, Only}
+
+
 pub trait Concept: fmt::Debug + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
+
+    fn concept_type(&self) -> ConceptType;
 
     fn negate(&self) -> Box<dyn Concept> {
         // Box::new(NotConcept{ subconcept: Box::new(self.clone()) })
@@ -47,6 +52,7 @@ impl Concept for AtomicConcept {
     fn convert_to_nnf(&self) -> Box<dyn Concept> {
         Box::new(self.clone())
     }
+    fn concept_type(&self) -> ConceptType { ConceptType::Atomic }
 }
 
 impl fmt::Debug for AtomicConcept {
@@ -66,6 +72,61 @@ impl fmt::Debug for NotConcept {
     }
 }
 
+impl Concept for NotConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        match self.subconcept.concept_type() {
+            ConceptType::Atomic => {
+                let subconcept = self.subconcept.downcast_ref::<AtomicConcept>().unwrap();
+                Box::new(NotConcept { subconcept: Box::new(subconcept.clone()) })
+            },
+            ConceptType::Not => {
+                let subconcept = self.subconcept.downcast_ref::<NotConcept>().unwrap();
+                subconcept.subconcept.convert_to_nnf()
+            },
+            ConceptType::Conjunction => {
+                // not and (A B C) => or ((not A) (not B) (not C))
+                let subconcept = self.subconcept.downcast_ref::<ConjunctionConcept>().unwrap();
+                // Box::new(AtomicConcept { name: "123".to_string() })
+                Box::new(DisjunctionConcept {
+                    subconcepts: subconcept.clone().subconcepts.iter()
+                        .map(|c| { c.negate() })
+                        .map(|c| {c.convert_to_nnf()})
+                        .collect()
+                })
+            },
+            ConceptType::Disjunction => {
+                // not [or (A B C)] => and ((not A) (not B) (not C))
+                let subconcept = self.subconcept.downcast_ref::<DisjunctionConcept>().unwrap();
+                Box::new(ConjunctionConcept {
+                    subconcepts: subconcept.clone().subconcepts.iter()
+                        .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
+                        .map(|c| {c.convert_to_nnf()})
+                        .collect()
+                })
+            },
+            ConceptType::Only => {
+                // not [only A] => some [not A]
+                let subconcept = self.subconcept.downcast_ref::<OnlyConcept>().unwrap();
+                Box::new(SomeConcept {
+                    relation: subconcept.relation.clone(),
+                    subconcept: subconcept.subconcept.negate().convert_to_nnf()
+                })
+            },
+            ConceptType::Some => {
+                // not [some A] => only [not A]
+                let subconcept = self.subconcept.downcast_ref::<SomeConcept>().unwrap();
+                Box::new(OnlyConcept {
+                    relation: subconcept.relation.clone(),
+                    subconcept: subconcept.subconcept.negate().convert_to_nnf()
+                })
+            }
+        }
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::Not }
+}
+
+
 #[derive(Clone)]
 pub struct ConjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
@@ -77,6 +138,16 @@ impl fmt::Debug for ConjunctionConcept {
     }
 }
 
+impl Concept for ConjunctionConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(ConjunctionConcept {
+            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
+        })
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::Conjunction }
+}
+
 #[derive(Clone)]
 pub struct DisjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
@@ -86,6 +157,16 @@ impl fmt::Debug for DisjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "or ({:?})", self.subconcepts)
     }
+}
+
+impl Concept for DisjunctionConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(DisjunctionConcept {
+            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
+        })
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::Disjunction }
 }
 
 #[derive(Clone)]
@@ -100,6 +181,17 @@ impl fmt::Debug for OnlyConcept {
     }
 }
 
+impl Concept for OnlyConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(OnlyConcept {
+            relation: self.relation.clone(),
+            subconcept: self.subconcept.convert_to_nnf()
+        })
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::Only }
+}
+
 #[derive(Clone)]
 pub struct SomeConcept {
     subconcept: Box<dyn Concept>,
@@ -112,76 +204,6 @@ impl fmt::Debug for SomeConcept {
     }
 }
 
-impl Concept for NotConcept {
-    fn convert_to_nnf(&self) -> Box<dyn Concept> {
-        if self.subconcept.is::<AtomicConcept>() {
-            let subconcept = self.subconcept.downcast_ref::<AtomicConcept>().unwrap();
-            Box::new(NotConcept { subconcept: Box::new(subconcept.clone()) })
-        } else if self.subconcept.is::<NotConcept>() {
-            let subconcept = self.subconcept.downcast_ref::<NotConcept>().unwrap();
-            subconcept.subconcept.convert_to_nnf()
-        } else if self.subconcept.is::<ConjunctionConcept>() {
-            // not and (A B C) => or ((not A) (not B) (not C))
-            let subconcept = self.subconcept.downcast_ref::<ConjunctionConcept>().unwrap();
-            // Box::new(AtomicConcept { name: "123".to_string() })
-            Box::new(DisjunctionConcept {
-                subconcepts: subconcept.clone().subconcepts.iter()
-                    .map(|c| { c.negate() })
-                    .map(|c| {c.convert_to_nnf()})
-                    .collect()
-            })
-        } else if self.subconcept.is::<DisjunctionConcept>() {
-            // not [or (A B C)] => and ((not A) (not B) (not C))
-            let subconcept = self.subconcept.downcast_ref::<DisjunctionConcept>().unwrap();
-            Box::new(ConjunctionConcept {
-                subconcepts: subconcept.clone().subconcepts.iter()
-                    .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
-                    .map(|c| {c.convert_to_nnf()})
-                    .collect()
-            })
-        } else if self.subconcept.is::<OnlyConcept>() {
-            // not [only A] => some [not A]
-            let subconcept = self.subconcept.downcast_ref::<OnlyConcept>().unwrap();
-            Box::new(SomeConcept {
-                relation: subconcept.relation.clone(),
-                subconcept: subconcept.subconcept.negate().convert_to_nnf()
-            })
-        } else if self.subconcept.is::<SomeConcept>() {
-            // not [some A] => only [not A]
-            let subconcept = self.subconcept.downcast_ref::<SomeConcept>().unwrap();
-            Box::new(OnlyConcept {
-                relation: subconcept.relation.clone(),
-                subconcept: subconcept.subconcept.negate().convert_to_nnf()
-            })
-        } else {
-            unimplemented!();
-        }
-
-
-    }
-}
-impl Concept for ConjunctionConcept {
-    fn convert_to_nnf(&self) -> Box<dyn Concept> {
-        Box::new(ConjunctionConcept {
-            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
-        })
-    }
-}
-impl Concept for DisjunctionConcept {
-    fn convert_to_nnf(&self) -> Box<dyn Concept> {
-        Box::new(DisjunctionConcept {
-            subconcepts: self.subconcepts.iter().map(|c| { c.convert_to_nnf() }).collect()
-        })
-    }
-}
-impl Concept for OnlyConcept {
-    fn convert_to_nnf(&self) -> Box<dyn Concept> {
-        Box::new(OnlyConcept {
-            relation: self.relation.clone(),
-            subconcept: self.subconcept.convert_to_nnf()
-        })
-    }
-}
 impl Concept for SomeConcept {
     fn convert_to_nnf(&self) -> Box<dyn Concept> {
         Box::new(SomeConcept {
@@ -189,6 +211,8 @@ impl Concept for SomeConcept {
             subconcept: self.subconcept.convert_to_nnf()
         })
     }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::Some }
 }
 
 
