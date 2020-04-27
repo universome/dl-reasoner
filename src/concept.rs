@@ -6,7 +6,7 @@ use std::marker::Sized;
 #[derive(PartialEq)]
 pub enum ConceptType {Atomic, Not, Conjunction, Disjunction, Some, Only}
 
-pub trait Concept: fmt::Debug + mopa::Any + ConceptClone {
+pub trait Concept: fmt::Debug + fmt::Display + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
 
     fn concept_type(&self) -> ConceptType;
@@ -32,10 +32,10 @@ impl Clone for Box<dyn Concept> {
     fn clone(&self) -> Box<dyn Concept> { self.clone_box() }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Relation { pub name: String }
 
-impl fmt::Debug for Relation {
+impl fmt::Display for Relation {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}(x, y)", self.name)
     }
@@ -44,7 +44,7 @@ impl fmt::Debug for Relation {
 #[derive(Debug, Clone)]
 pub struct Individual { pub name: String }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AtomicConcept { name: String }
 
 impl Concept for AtomicConcept {
@@ -54,20 +54,20 @@ impl Concept for AtomicConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Atomic }
 }
 
-impl fmt::Debug for AtomicConcept {
+impl fmt::Display for AtomicConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NotConcept {
     subconcept: Box<dyn Concept>
 }
 
-impl fmt::Debug for NotConcept {
+impl fmt::Display for NotConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "not {:?}", self.subconcept)
+        write!(fmt, "not {}", self.subconcept)
     }
 }
 
@@ -126,14 +126,14 @@ impl Concept for NotConcept {
 }
 
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-impl fmt::Debug for ConjunctionConcept {
+impl fmt::Display for ConjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "and ({:?})", self.subconcepts)
+        write!(fmt, "and ({})", self.subconcepts.iter().map(|sc| sc.to_string()).collect::<Vec<String>>().join(" "))
     }
 }
 
@@ -147,14 +147,14 @@ impl Concept for ConjunctionConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Conjunction }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DisjunctionConcept {
     subconcepts: Vec<Box<dyn Concept>>
 }
 
-impl fmt::Debug for DisjunctionConcept {
+impl fmt::Display for DisjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "or ({:?})", self.subconcepts)
+        write!(fmt, "and ({})", self.subconcepts.iter().map(|sc| sc.to_string()).collect::<Vec<String>>().join(" "))
     }
 }
 
@@ -168,15 +168,15 @@ impl Concept for DisjunctionConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Disjunction }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct OnlyConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-impl fmt::Debug for OnlyConcept {
+impl fmt::Display for OnlyConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "only {} {:?}", self.relation.name, self.subconcept)
+        write!(fmt, "only {} {}", self.relation.name, self.subconcept)
     }
 }
 
@@ -191,15 +191,15 @@ impl Concept for OnlyConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Only }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SomeConcept {
     subconcept: Box<dyn Concept>,
     relation: Relation
 }
 
-impl fmt::Debug for SomeConcept {
+impl fmt::Display for SomeConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "some {} {:?}", self.relation.name, self.subconcept)
+        write!(fmt, "some {} {}", self.relation.name, self.subconcept)
     }
 }
 

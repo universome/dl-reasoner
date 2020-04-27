@@ -27,5 +27,5 @@ fn main() {
     let a = abox::parse_abox(&contents);
 
     // println!("With text:\n{}", contents);
-    println!("{:#?}", a);
+    println!("{}", a);
 }

@@ -15,20 +15,26 @@ pub struct ABox {
     pub axioms: Vec<Box<dyn ABoxAxiom>>
 }
 
-pub trait ABoxAxiom: fmt::Debug + mopa::Any {
+impl fmt::Display for ABox {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "ABox {}", self.axioms.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(" "))
+    }
+}
+
+pub trait ABoxAxiom: fmt::Debug + fmt::Display + mopa::Any {
     fn axiom_type(&self) -> ABoxAxiomType;
 }
 mopafy!(ABoxAxiom);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConceptAxiom {
     pub concept: Box<dyn Concept>,
     pub individual: Individual
 }
 
-impl fmt::Debug for ConceptAxiom {
+impl fmt::Display for ConceptAxiom {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "({:?})[{}]", self.concept, self.individual.name)
+        write!(fmt, "({})[{}]", self.concept, self.individual.name)
     }
 }
 
@@ -36,18 +42,24 @@ impl ABoxAxiom for ConceptAxiom {
     fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Concept }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RelationAxiom {
     pub relation: Relation,
     pub lhs: Individual,
     pub rhs: Individual,
 }
 
-impl fmt::Debug for RelationAxiom {
+impl fmt::Display for RelationAxiom {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}({}, {})", self.relation.name, self.lhs.name, self.rhs.name)
     }
 }
+
+// impl string::ToString for RelationAxiom {
+//     fn to_string(&self) -> String {
+//         format!("{}({}, {})", self.relation.name, self.lhs.name, self.rhs.name)
+//     }
+// }
 
 impl ABoxAxiom for RelationAxiom {
     fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Relation }
