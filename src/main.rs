@@ -7,9 +7,9 @@ use std::fs;
 extern crate mopa;
 
 mod abox;
-// mod tbox;
+mod tbox;
 mod concept;
-// mod reasoner;
+mod reasoner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -27,5 +27,5 @@ fn main() {
     let a = abox::parse_abox(&contents);
 
     // println!("With text:\n{}", contents);
-    println!("ABOX: {:#?}", a);
+    println!("{:#?}", a);
 }

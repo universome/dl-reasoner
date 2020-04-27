@@ -8,16 +8,22 @@ use std::clone::Clone;
 use std::string;
 use concept::{Individual, Relation, Concept, parse_concept};
 
-// pub struct ABox {
-//     mut axioms: Vec<Box<dyn ABoxAxiom>>,
-//     mut set:
-// }
+pub enum ABoxAxiomType { Concept, Relation }
 
-pub trait ABoxAxiom: fmt::Debug {}
+#[derive(Debug)]
+pub struct ABox {
+    pub axioms: Vec<Box<dyn ABoxAxiom>>
+}
 
-struct ConceptAxiom {
-    concept: Box<dyn Concept>,
-    individual: Individual
+pub trait ABoxAxiom: fmt::Debug + mopa::Any {
+    fn axiom_type(&self) -> ABoxAxiomType;
+}
+mopafy!(ABoxAxiom);
+
+#[derive(Clone)]
+pub struct ConceptAxiom {
+    pub concept: Box<dyn Concept>,
+    pub individual: Individual
 }
 
 impl fmt::Debug for ConceptAxiom {
@@ -26,10 +32,15 @@ impl fmt::Debug for ConceptAxiom {
     }
 }
 
-struct RelationAxiom {
-    relation: Relation,
-    lhs: Individual,
-    rhs: Individual,
+impl ABoxAxiom for ConceptAxiom {
+    fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Concept }
+}
+
+#[derive(Clone)]
+pub struct RelationAxiom {
+    pub relation: Relation,
+    pub lhs: Individual,
+    pub rhs: Individual,
 }
 
 impl fmt::Debug for RelationAxiom {
@@ -38,20 +49,21 @@ impl fmt::Debug for RelationAxiom {
     }
 }
 
-impl ABoxAxiom for ConceptAxiom {}
-impl ABoxAxiom for RelationAxiom {}
+impl ABoxAxiom for RelationAxiom {
+    fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Relation }
+}
 
 
-pub fn parse_abox(abox_str: &str) -> Vec<Box<dyn ABoxAxiom>> {
+pub fn parse_abox(abox_str: &str) -> ABox {
     let abox_str = abox_str.trim();
-    let mut abox_axioms = Vec::new();
+    let mut abox = ABox {axioms: vec![]};
 
     for line in abox_str.lines() {
         println!("Parsing line: {}", line);
-        abox_axioms.push(parse_abox_axiom(&line))
+        abox.axioms.push(parse_abox_axiom(&line))
     }
 
-    abox_axioms
+    abox
 }
 
 

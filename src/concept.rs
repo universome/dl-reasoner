@@ -3,9 +3,8 @@ use std::clone::Clone;
 use std::any::{Any, TypeId};
 use std::marker::Sized;
 
-
+#[derive(PartialEq)]
 pub enum ConceptType {Atomic, Not, Conjunction, Disjunction, Some, Only}
-
 
 pub trait Concept: fmt::Debug + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
@@ -17,6 +16,8 @@ pub trait Concept: fmt::Debug + mopa::Any + ConceptClone {
         Box::new(NotConcept{ subconcept: Box::new(self).clone_box() })
     }
 }
+
+mopafy!(Concept);
 
 pub trait ConceptClone {
     fn clone_box(&self) -> Box<dyn Concept>;
@@ -30,8 +31,6 @@ impl<T> ConceptClone for T where T: Concept + Clone {
 impl Clone for Box<dyn Concept> {
     fn clone(&self) -> Box<dyn Concept> { self.clone_box() }
 }
-
-mopafy!(Concept);
 
 #[derive(Clone)]
 pub struct Relation { pub name: String }
