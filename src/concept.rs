@@ -94,7 +94,7 @@ impl Clone for Box<dyn Concept> {
     fn clone(&self) -> Box<dyn Concept> { self.clone_box() }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Relation { pub name: String }
 
 impl fmt::Display for Relation {
@@ -103,7 +103,7 @@ impl fmt::Display for Relation {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Individual { pub name: String }
 
 #[derive(Debug, Clone, Hash)]
@@ -236,8 +236,8 @@ impl Concept for DisjunctionConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct OnlyConcept {
-    subconcept: Box<dyn Concept>,
-    relation: Relation
+    pub subconcept: Box<dyn Concept>,
+    pub relation: Relation
 }
 
 impl fmt::Display for OnlyConcept {
@@ -259,8 +259,8 @@ impl Concept for OnlyConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct SomeConcept {
-    subconcept: Box<dyn Concept>,
-    relation: Relation
+    pub subconcept: Box<dyn Concept>,
+    pub relation: Relation
 }
 
 impl fmt::Display for SomeConcept {

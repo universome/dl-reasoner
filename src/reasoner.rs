@@ -56,41 +56,39 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let conjunction_axioms = extract_concept_axioms(abox, ConceptType::Conjunction);
 
     if conjunction_axioms.is_empty() {
-        return None; // Cannot apply and rule
+        return None; // Cannot apply and-rule
     }
 
+    let new_axioms = conjunction_axioms
+        .iter()
+        .map(|a| {
+            let concept = a.concept.downcast_ref::<ConjunctionConcept>().unwrap();
+            create_new_axioms(concept.subconcepts.clone(), a.individual.clone(), abox)
+        })
+        .find(|new_axioms| !new_axioms.is_empty());
+
+    if new_axioms.is_none() {
+        return None; // We have not found any expandable and-rule
+    }
+
+    let new_axioms = new_axioms.unwrap();
     let mut new_abox = abox.clone();
-    let mut num_new_axioms = 0;
+    let num_applicable_axioms = new_axioms
+        .iter()
+        .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap())
+        .map(|a| ConceptAxiom { concept: a.concept.negate(), individual: a.individual.clone() }) // Negating
+        .map(|a| Box::new(a) as Box<dyn ABoxAxiom>)
+        .filter(|a| !new_abox.axioms.contains(&*a))
+        .count();
 
-    for axiom in conjunction_axioms {
-        let concept = axiom.concept.downcast_ref::<ConjunctionConcept>().unwrap();
-        let new_axioms = create_new_axioms(concept.subconcepts.clone(), axiom.individual.clone(), abox);
-
-        let num_curr_new_axioms = new_axioms.len();
-        let num_applicable_axioms = new_axioms
-            // Remove axioms that we cannot apply
-            .iter()
-            .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap())
-            .map(|a| ConceptAxiom { concept: a.concept.negate(), individual: a.individual.clone() }) // Negating
-            .map(|a| Box::new(a) as Box<dyn ABoxAxiom>)
-            .filter(|a| !abox.axioms.contains(&*a))
-            .count();
-
-        new_abox.axioms.extend(new_axioms);
-        num_new_axioms += num_applicable_axioms;
-
-        if num_applicable_axioms != num_curr_new_axioms {
-            // Conjunction rule was applied and we got an incosistent abox
-            new_abox.is_consistent = Some(false);
-
-            return Some(new_abox);
-        }
+    if num_applicable_axioms != new_axioms.len() {
+        // Conjunction rule was applied and we got an incosistent abox
+        new_abox.is_consistent = Some(false);
     }
 
-    match num_new_axioms {
-        0 => None, // Cannot expand anything with the and-rule
-        _ => Some(new_abox) // We have successfully applied and-rule
-    }
+    new_abox.axioms.extend(new_axioms);
+
+    Some(new_abox)
 }
 
 
@@ -103,8 +101,6 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
         return vec![]; // Cannot apply the rule
     }
 
-    let mut new_aboxes: Vec<ABox> = vec![];
-
     for axiom in disjunction_axioms {
         let concept = axiom.concept.downcast_ref::<DisjunctionConcept>().unwrap();
         let new_axioms = create_new_axioms(concept.subconcepts.clone(), axiom.individual.clone(), abox);
@@ -116,13 +112,39 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
         }
 
         // Ok, good. We can now expand with the or-rule!
-        new_aboxes.extend(new_axioms
+        return new_axioms
             .into_iter()
-            .map(|a| create_new_abox_from_concept_axiom(a, axiom.individual.clone(), abox))
-            .collect::<Vec<ABox>>());
+            .map(|a| create_new_abox_from_concept_axiom(a, abox))
+            .collect::<Vec<ABox>>();
     }
 
-    new_aboxes
+    vec![]
+}
+
+
+fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+    let only_axioms = extract_concept_axioms(abox, ConceptType::Only);
+
+    if only_axioms.is_empty() {
+        return None;
+    }
+
+    for axiom in only_axioms {
+        let concept = axiom.concept.downcast_ref::<OnlyConcept>().unwrap();
+        let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        let new_axiom = other_individuals.
+            into_iter()
+            .map(|y| Box::new(ConceptAxiom {concept: Box::new(concept.clone()), individual: y}) as Box::<dyn ABoxAxiom>)
+            .find(|a| !abox.axioms.contains(a));
+
+        if new_axiom.is_none() {
+            continue;
+        }
+
+        return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
+    }
+
+    None
 }
 
 
@@ -146,14 +168,15 @@ fn create_new_axioms(concepts: Vec<Box<dyn Concept>>, individual: Individual, ab
         .collect()
 }
 
-fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, individual: Individual, abox: &ABox) -> ABox {
+
+fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, abox: &ABox) -> ABox {
     debug_assert!(!abox.axioms.contains(&axiom));
 
     let mut new_abox = abox.clone();
     let concept_axiom = axiom.downcast_ref::<ConceptAxiom>().unwrap();
     let negated_axiom = Box::new(ConceptAxiom {
         concept: concept_axiom.concept.negate(),
-        individual: individual.clone()
+        individual: concept_axiom.individual.clone()
     }) as Box<dyn ABoxAxiom>;
 
     new_abox.axioms.insert(axiom);
@@ -163,4 +186,15 @@ fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, individual: Ind
     }
 
     new_abox
+}
+
+
+fn extract_relation_rhs_individuals(relation: &Relation, individual: &Individual, abox: &ABox) -> Vec<Individual> {
+    return abox.axioms
+        .iter()
+        .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
+        .map(|a| a.downcast_ref::<RelationAxiom>().unwrap())
+        .filter(|ra| &ra.relation == relation && &ra.lhs == individual)
+        .map(|ra| ra.rhs.clone())
+        .collect::<Vec<Individual>>()
 }
