@@ -24,8 +24,7 @@ pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
         let new_aboxes = perform_tableu_reasoning_step(&abox, &tbox);
 
         if new_aboxes.is_empty() {
-            // Hooray! We have terminated! This means, that we are
-            debug!("Found a model: {}", abox);
+            // Hooray! We have terminated! This means, that we have reached a consistent leave
             return Some(abox);
         }
 
@@ -63,7 +62,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let conjunction_axioms = extract_concept_axioms(abox, ConceptType::Conjunction);
 
     if conjunction_axioms.is_empty() {
-        debug!("Tried to expand AND rule, but there are no relevant axioms.");
+        debug!("Tried to expand AND rule, but there are no relevant axioms in the abox: {}", abox);
         return None; // Cannot apply and-rule
     }
 
@@ -150,14 +149,17 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
         let new_axiom = other_individuals
             .into_iter()
-            .map(|y| Box::new(ConceptAxiom {concept: Box::new(concept.clone()), individual: y}) as Box::<dyn ABoxAxiom>)
+            .map(|y| Box::new(ConceptAxiom {
+                concept: concept.subconcept.clone() as Box<dyn Concept>,
+                individual: y
+            }) as Box::<dyn ABoxAxiom>)
             .find(|a| !abox.axioms.contains(a));
 
         if new_axiom.is_none() {
             continue;
         }
 
-        debug!("Successfully expanded ONLY rule.");
+        debug!("Successfully expanded ONLY rule: {} => {}", axiom, new_axiom.clone().unwrap());
         return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
     }
 
