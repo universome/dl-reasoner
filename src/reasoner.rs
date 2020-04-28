@@ -10,16 +10,20 @@ pub struct Model {
 }
 
 
-pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<Model> {
-    // let mut aboxes = vec![abox];
+// pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<Model> {
+//     let mut aboxes = vec![abox];
 
-    // while let Some(abox_to_explore) = aboxes.pop() {
-    //     let new_aboxes = perform_tableu_reasoning_step(abox, tbox);
-    //     aboxes.extend(new_aboxes);
-    // }
+//     loop {
+//         if aboxes.is_empty() {
+//             debug!("We are out of aboxes");
+//         }
 
-    None
-}
+//         let new_aboxes = perform_tableu_reasoning_step(abox, tbox);
+//         aboxes.extend(new_aboxes);
+//     }
+
+//     None
+// }
 
 // fn perform_tableu_reasoning_step(abox: ABox, tbox: TBox) -> Option<ABox> {
 //     if let Some(new_abox) = expand_with_and_rule(abox, tbox) {
@@ -33,20 +37,6 @@ pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<Model> {
 //     }
 
 //     None
-// }
-
-
-// pub fn count_axiom_types(abox: &ABox, desired_concept_type: ConceptType) -> usize {
-//     abox.axioms.iter().filter(|&axiom| {
-//         match axiom.axiom_type() {
-//             ABoxAxiomType::Concept => {
-//                 let concept_axiom = axiom.downcast_ref::<ConceptAxiom>().unwrap();
-
-//                 concept_axiom.concept.concept_type() == desired_concept_type
-//             },
-//             _ => false
-//         }
-//     }).count()
 // }
 
 
@@ -167,15 +157,18 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
             continue;
         }
 
-        let new_individual = Individual { name: "asdfasdf".to_string() };
+        let new_individual = Individual { name: format!("x_{}", abox.individuals.len()) };
         debug!("Creating new individual: {}", new_individual.name );
 
         let new_axiom = Box::new(ConceptAxiom {
             concept: Box::new(concept.clone()) as Box<dyn Concept>,
-            individual: new_individual
+            individual: new_individual.clone()
         }) as Box<dyn ABoxAxiom>;
 
-        return Some(create_new_abox_from_concept_axiom(new_axiom, abox))
+        let mut new_abox = create_new_abox_from_concept_axiom(new_axiom, abox);
+        new_abox.individuals.insert(new_individual);
+
+        return Some(new_abox);
     }
 
     None

@@ -18,37 +18,39 @@ pub fn parse_abox(abox_str: &str) -> ABox {
 
     for line in abox_str.lines() {
         println!("Parsing line: {}", line);
-        abox.axioms.insert(parse_abox_axiom(&line));
+        add_abox_axiom(&mut abox, &line);
     }
 
     abox
 }
 
 
-pub fn parse_abox_axiom(axiom_str: &str) -> Box<dyn ABoxAxiom> {
+pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
     let axiom_str = axiom_str.trim();
     let start_idx = axiom_str.find("[").unwrap_or(0);
     let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
     let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
     println!("arguments string: {}", arguments_str);
-    let mut individuals = arguments_str
+    let individuals = arguments_str
         .split(",").map(|n| (Individual {name: n.to_string()}))
         .collect::<Vec<_>>();
 
     if arguments_str.contains(",") {
         // This is a relation axiom
-        Box::new(RelationAxiom {
+        abox.axioms.insert(Box::new(RelationAxiom {
             relation: Relation { name: axiom_str[..start_idx].to_string() },
-            lhs: individuals.remove(0),
-            rhs: individuals.remove(0),
-        })
+            lhs: individuals[0].clone(),
+            rhs: individuals[1].clone()
+        }));
     } else {
         // This is a concept axiom
-        Box::new(ConceptAxiom {
+        abox.axioms.insert(Box::new(ConceptAxiom {
             concept: parse_concept(&axiom_str[..start_idx]).convert_to_nnf(),
-            individual: individuals.remove(0)
-        })
+            individual: individuals[0].clone()
+        }));
     }
+
+    abox.individuals.extend(individuals);
 }
 
 
@@ -60,12 +62,18 @@ pub struct ABox {
     pub axioms: HashSet<Box<dyn ABoxAxiom>>,
     pub is_consistent: Option<bool>,
     pub is_complete: Option<bool>,
+    pub individuals: HashSet<Individual>
     // pub axioms: Vec<Box<dyn ABoxAxiom>>
 }
 
 impl ABox {
     fn new() -> ABox {
-        ABox { axioms: HashSet::new(), is_consistent: None, is_complete: None }
+        ABox {
+            axioms: HashSet::new(),
+            is_consistent: None,
+            is_complete: None,
+            individuals: HashSet::new()
+        }
     }
 }
 
