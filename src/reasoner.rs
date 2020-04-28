@@ -132,8 +132,8 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     for axiom in only_axioms {
         let concept = axiom.concept.downcast_ref::<OnlyConcept>().unwrap();
         let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
-        let new_axiom = other_individuals.
-            into_iter()
+        let new_axiom = other_individuals
+            .into_iter()
             .map(|y| Box::new(ConceptAxiom {concept: Box::new(concept.clone()), individual: y}) as Box::<dyn ABoxAxiom>)
             .find(|a| !abox.axioms.contains(a));
 
@@ -142,6 +142,40 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         }
 
         return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
+    }
+
+    None
+}
+
+
+fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+    let some_axioms = extract_concept_axioms(abox, ConceptType::Some);
+
+    if some_axioms.is_empty() {
+        return None;
+    }
+
+    for axiom in some_axioms {
+        let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();
+        let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        let other_individuals_concepts = other_individuals
+            .into_iter()
+            .map(|y| Box::new(ConceptAxiom {concept: Box::new(concept.clone()), individual: y}) as Box::<dyn ABoxAxiom>)
+            .find(|a| abox.axioms.contains(a));
+
+        if other_individuals_concepts.is_some() {
+            continue;
+        }
+
+        let new_individual = Individual { name: "asdfasdf".to_string() };
+        debug!("Creating new individual: {}", new_individual.name );
+
+        let new_axiom = Box::new(ConceptAxiom {
+            concept: Box::new(concept.clone()) as Box<dyn Concept>,
+            individual: new_individual
+        }) as Box<dyn ABoxAxiom>;
+
+        return Some(create_new_abox_from_concept_axiom(new_axiom, abox))
     }
 
     None

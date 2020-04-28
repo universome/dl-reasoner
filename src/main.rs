@@ -3,8 +3,8 @@
 use std::env;
 use std::fs;
 
-#[macro_use]
-extern crate mopa;
+#[macro_use] extern crate mopa;
+#[macro_use] extern crate log;
 
 mod abox;
 mod tbox;

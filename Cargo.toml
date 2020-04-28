@@ -5,3 +5,4 @@ authors = ["Ivan Skorokhodov <iskorokhodov@gmail.com>"]
 
 [dependencies]
 mopa = "0.2.2"
+log = "0.4.8"
