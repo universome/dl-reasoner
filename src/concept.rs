@@ -4,6 +4,53 @@ use std::clone::Clone;
 use std::any::{Any, TypeId};
 use std::marker::Sized;
 
+
+fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
+    // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
+    // parses them individually and returns a vector of concepts.
+    let concepts_str = concepts_str.trim();
+    println!("Extractinc concepts: {}", concepts_str);
+    let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
+    let mut curr_depth = 0;
+    let mut curr_concept_start_idx = 0;
+    let mut i = 0;
+
+    while i < concepts_str.len() {
+        if &concepts_str[i..i + 1] == "(" {
+            curr_depth += 1; // Going a level deeper
+        } else if &concepts_str[i..i + 1] == ")" {
+            curr_depth -= 1; // Going a level out
+        }
+
+        if curr_depth == 0 {
+            println!("Found concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
+            concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
+            curr_concept_start_idx = i + 1; // Next concept starts on the next character
+            i += 1;
+        }
+
+        i += 1;
+    }
+    // for (i, c) in concepts_str.chars().enumerate() {
+    //     if c == '(' {
+    //         curr_depth += 1; // Going a level deeper
+    //     } else if c == ')' {
+    //         curr_depth -= 1; // Going a level out
+    //     }
+
+    //     if curr_depth == 0 {
+    //         println!("Found concept: {}", &concepts_str[curr_concept_start_idx..i+1]);
+    //         concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..i+1]));
+    //         curr_concept_start_idx = i; // Next concept starts on the next character
+    //     }
+    // }
+
+    debug_assert!(concepts.len() > 0);
+
+    concepts
+}
+
+
 #[derive(PartialEq)]
 pub enum ConceptType {Atomic, Not, Conjunction, Disjunction, Some, Only}
 
@@ -270,52 +317,6 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         // This is an Atomic Concept!
         Box::new(AtomicConcept { name: concept_str.to_string() })
     }
-}
-
-
-fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
-    // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
-    // parses them individually and returns a vector of concepts.
-    let concepts_str = concepts_str.trim();
-    println!("Extractinc concepts: {}", concepts_str);
-    let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
-    let mut curr_depth = 0;
-    let mut curr_concept_start_idx = 0;
-    let mut i = 0;
-
-    while i < concepts_str.len() {
-        if &concepts_str[i..i + 1] == "(" {
-            curr_depth += 1; // Going a level deeper
-        } else if &concepts_str[i..i + 1] == ")" {
-            curr_depth -= 1; // Going a level out
-        }
-
-        if curr_depth == 0 {
-            println!("Found concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
-            concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
-            curr_concept_start_idx = i + 1; // Next concept starts on the next character
-            i += 1;
-        }
-
-        i += 1;
-    }
-    // for (i, c) in concepts_str.chars().enumerate() {
-    //     if c == '(' {
-    //         curr_depth += 1; // Going a level deeper
-    //     } else if c == ')' {
-    //         curr_depth -= 1; // Going a level out
-    //     }
-
-    //     if curr_depth == 0 {
-    //         println!("Found concept: {}", &concepts_str[curr_concept_start_idx..i+1]);
-    //         concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..i+1]));
-    //         curr_concept_start_idx = i; // Next concept starts on the next character
-    //     }
-    // }
-
-    debug_assert!(concepts.len() > 0);
-
-    concepts
 }
 
 #[cfg(test)]

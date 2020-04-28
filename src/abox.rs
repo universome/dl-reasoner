@@ -11,13 +11,62 @@ use std::collections::HashSet;
 
 use concept::{Individual, Relation, Concept, parse_concept};
 
+
+pub fn parse_abox(abox_str: &str) -> ABox {
+    let abox_str = abox_str.trim();
+    let mut abox = ABox::new();
+
+    for line in abox_str.lines() {
+        println!("Parsing line: {}", line);
+        abox.axioms.insert(parse_abox_axiom(&line));
+    }
+
+    abox
+}
+
+
+pub fn parse_abox_axiom(axiom_str: &str) -> Box<dyn ABoxAxiom> {
+    let axiom_str = axiom_str.trim();
+    let start_idx = axiom_str.find("[").unwrap_or(0);
+    let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
+    let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
+    println!("arguments string: {}", arguments_str);
+    let mut individuals = arguments_str
+        .split(",").map(|n| (Individual {name: n.to_string()}))
+        .collect::<Vec<_>>();
+
+    if arguments_str.contains(",") {
+        // This is a relation axiom
+        Box::new(RelationAxiom {
+            relation: Relation { name: axiom_str[..start_idx].to_string() },
+            lhs: individuals.remove(0),
+            rhs: individuals.remove(0),
+        })
+    } else {
+        // This is a concept axiom
+        Box::new(ConceptAxiom {
+            concept: parse_concept(&axiom_str[..start_idx]).convert_to_nnf(),
+            individual: individuals.remove(0)
+        })
+    }
+}
+
+
 #[derive(PartialEq)]
 pub enum ABoxAxiomType { Concept, Relation }
 
 #[derive(Debug, Clone)]
 pub struct ABox {
-    pub axioms: HashSet<Box<dyn ABoxAxiom>>
+    pub axioms: HashSet<Box<dyn ABoxAxiom>>,
+    pub is_consistent: Option<bool>,
+    pub is_complete: Option<bool>,
     // pub axioms: Vec<Box<dyn ABoxAxiom>>
+}
+
+impl ABox {
+    fn new() -> ABox {
+        ABox { axioms: HashSet::new(), is_consistent: None, is_complete: None }
+    }
 }
 
 impl fmt::Display for ABox {
@@ -94,44 +143,4 @@ impl fmt::Display for RelationAxiom {
 
 impl ABoxAxiom for RelationAxiom {
     fn axiom_type(&self) -> ABoxAxiomType { ABoxAxiomType::Relation }
-}
-
-
-pub fn parse_abox(abox_str: &str) -> ABox {
-    let abox_str = abox_str.trim();
-    let mut abox = ABox {axioms: HashSet::new()};
-
-    for line in abox_str.lines() {
-        println!("Parsing line: {}", line);
-        abox.axioms.insert(parse_abox_axiom(&line));
-    }
-
-    abox
-}
-
-
-pub fn parse_abox_axiom(axiom_str: &str) -> Box<dyn ABoxAxiom> {
-    let axiom_str = axiom_str.trim();
-    let start_idx = axiom_str.find("[").unwrap_or(0);
-    let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
-    let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
-    println!("arguments string: {}", arguments_str);
-    let mut individuals = arguments_str
-        .split(",").map(|n| (Individual {name: n.to_string()}))
-        .collect::<Vec<_>>();
-
-    if arguments_str.contains(",") {
-        // This is a relation axiom
-        Box::new(RelationAxiom {
-            relation: Relation { name: axiom_str[..start_idx].to_string() },
-            lhs: individuals.remove(0),
-            rhs: individuals.remove(0),
-        })
-    } else {
-        // This is a concept axiom
-        Box::new(ConceptAxiom {
-            concept: parse_concept(&axiom_str[..start_idx]).convert_to_nnf(),
-            individual: individuals.remove(0)
-        })
-    }
 }
