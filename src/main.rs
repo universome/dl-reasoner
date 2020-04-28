@@ -1,10 +1,11 @@
 #![allow(unused)]
-
 use std::env;
 use std::fs;
 
 #[macro_use] extern crate mopa;
 #[macro_use] extern crate log;
+extern crate fern;
+extern crate chrono;
 
 mod abox;
 mod tbox;
@@ -12,20 +13,28 @@ mod concept;
 mod reasoner;
 
 fn main() {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Debug)
+        .chain(std::io::stdout())
+        // .chain(fern::log_file("output.log"))
+        .apply();
+
     let args: Vec<String> = env::args().collect();
-
     let filename = &args[1];
-
-    println!("File {}", filename);
-    // let string = "SUPERSTRING";
-    // println!("SUPERSTRING? {}", string.chars().skip(60).collect::<String>());
-    // println!("SUPERSTRING? {}", string.chars().take(60).collect::<String>());
-
     let contents = fs::read_to_string(filename)
         .expect("Something went wrong reading the file");
 
-    let a = abox::parse_abox(&contents);
-    println!("{}", a);
+    let abox = abox::parse_abox(&contents);
+    debug!("Intiial ABox: {}", abox);
 
-    reasoner::tableau_reasoning(a, tbox::TBox {});
+    reasoner::tableau_reasoning(abox, tbox::TBox {});
 }

@@ -17,7 +17,7 @@ pub fn parse_abox(abox_str: &str) -> ABox {
     let mut abox = ABox::new();
 
     for line in abox_str.lines() {
-        println!("Parsing line: {}", line);
+        debug!("Parsing line: {}", line);
         add_abox_axiom(&mut abox, &line);
     }
 
@@ -30,7 +30,7 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
     let start_idx = axiom_str.find("[").unwrap_or(0);
     let end_idx = axiom_str.find("]").unwrap_or(axiom_str.len());
     let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
-    println!("arguments string: {}", arguments_str);
+    debug!("arguments string: {}", arguments_str);
     let individuals = arguments_str
         .split(",").map(|n| (Individual {name: n.to_string()}))
         .collect::<Vec<_>>();
@@ -79,7 +79,7 @@ impl ABox {
 
 impl fmt::Display for ABox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "ABox {}", self.axioms.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(" "))
+        write!(fmt, "ABox:\n  - {}", self.axioms.iter().map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
     }
 }
 

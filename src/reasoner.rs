@@ -11,6 +11,7 @@ use tbox::*;
 
 
 pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
+    debug!("\n\n<======== Starting tableau algorithm ========>\n");
     let mut aboxes = vec![abox];
 
     // TODO: check initial abox for consistency for O(n)
@@ -40,7 +41,6 @@ pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
 }
 
 fn perform_tableu_reasoning_step(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
-
     let new_abox =  apply_conjunction_rule(abox, tbox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
@@ -105,8 +105,11 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
     let disjunction_axioms = extract_concept_axioms(abox, ConceptType::Disjunction);
 
     if disjunction_axioms.is_empty() {
+        debug!("Tried to expand OR rule, but there are no some axioms.");
         return vec![]; // Cannot apply the rule
     }
+
+    // debug!("Found disjuntion axioms: {}", disjunction_axioms.iter().join("|"));
 
     for axiom in disjunction_axioms {
         let concept = axiom.concept.downcast_ref::<DisjunctionConcept>().unwrap();
@@ -125,6 +128,8 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
             .collect::<Vec<ABox>>();
     }
 
+    debug!("All OR axioms are non-expandable: {}", abox);
+
     vec![]
 }
 
@@ -133,6 +138,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let only_axioms = extract_concept_axioms(abox, ConceptType::Only);
 
     if only_axioms.is_empty() {
+        debug!("Tried to expand ONLY rule, but there are no some axioms.");
         return None;
     }
 
@@ -151,6 +157,8 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
     }
 
+    debug!("All ONLY axioms are non-expandable: {}", abox);
+
     None
 }
 
@@ -159,6 +167,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let some_axioms = extract_concept_axioms(abox, ConceptType::Some);
 
     if some_axioms.is_empty() {
+        debug!("Tried to expand SOME rule, but there are no some axioms.");
         return None;
     }
 
@@ -175,7 +184,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         }
 
         let new_individual = Individual { name: format!("x_{}", abox.individuals.len()) };
-        debug!("Creating new individual: {}", new_individual.name );
+        debug!("Creating new individual: {}", new_individual.name);
 
         let new_axiom = Box::new(ConceptAxiom {
             concept: Box::new(concept.clone()) as Box<dyn Concept>,
@@ -187,6 +196,8 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 
         return Some(new_abox);
     }
+
+    debug!("All SOME axioms are non-expandable: {}", abox);
 
     None
 }
