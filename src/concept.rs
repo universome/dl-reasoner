@@ -138,6 +138,10 @@ impl Concept for NotConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::Not }
+
+    fn negate(&self) -> Box<dyn Concept> {
+        self.subconcept.clone() as Box<dyn Concept>
+    }
 }
 
 
