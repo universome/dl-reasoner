@@ -11,10 +11,10 @@ use std::collections::HashSet;
 
 use concept::{Individual, Relation, Concept, parse_concept};
 
-
+#[derive(PartialEq)]
 pub enum ABoxAxiomType { Concept, Relation }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ABox {
     pub axioms: HashSet<Box<dyn ABoxAxiom>>
     // pub axioms: Vec<Box<dyn ABoxAxiom>>
@@ -26,7 +26,7 @@ impl fmt::Display for ABox {
     }
 }
 
-pub trait ABoxAxiom: fmt::Debug + fmt::Display + mopa::Any {
+pub trait ABoxAxiom: fmt::Debug + fmt::Display + mopa::Any + ABoxAxiomClone {
     fn axiom_type(&self) -> ABoxAxiomType;
 }
 mopafy!(ABoxAxiom);
@@ -44,6 +44,18 @@ impl PartialEq for dyn ABoxAxiom {
 }
 
 impl Eq for dyn ABoxAxiom {}
+
+impl Clone for Box<dyn ABoxAxiom> {
+    fn clone(&self) -> Box<dyn ABoxAxiom> { self.clone_box() }
+}
+
+pub trait ABoxAxiomClone {
+    fn clone_box(&self) -> Box<dyn ABoxAxiom>;
+}
+
+impl<T> ABoxAxiomClone for T where T: ABoxAxiom + Clone {
+    fn clone_box(&self) -> Box<dyn ABoxAxiom> { Box::new(self.clone()) }
+}
 
 #[derive(Debug, Clone, Hash)]
 pub struct ConceptAxiom {

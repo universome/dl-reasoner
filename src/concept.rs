@@ -77,7 +77,7 @@ impl fmt::Display for AtomicConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct NotConcept {
-    subconcept: Box<dyn Concept>
+    pub subconcept: Box<dyn Concept>
 }
 
 impl fmt::Display for NotConcept {
@@ -143,7 +143,7 @@ impl Concept for NotConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct ConjunctionConcept {
-    subconcepts: Vec<Box<dyn Concept>>
+    pub subconcepts: Vec<Box<dyn Concept>>
 }
 
 impl fmt::Display for ConjunctionConcept {
@@ -164,7 +164,7 @@ impl Concept for ConjunctionConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct DisjunctionConcept {
-    subconcepts: Vec<Box<dyn Concept>>
+    pub subconcepts: Vec<Box<dyn Concept>>
 }
 
 impl fmt::Display for DisjunctionConcept {
