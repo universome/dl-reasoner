@@ -25,7 +25,7 @@ fn main() {
         .expect("Something went wrong reading the file");
 
     let a = abox::parse_abox(&contents);
-
-    // println!("With text:\n{}", contents);
     println!("{}", a);
+
+    reasoner::tableau_reasoning(a, tbox::TBox {});
 }

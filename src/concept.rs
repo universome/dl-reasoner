@@ -9,7 +9,7 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
     // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
     // parses them individually and returns a vector of concepts.
     let concepts_str = concepts_str.trim();
-    println!("Extractinc concepts: {}", concepts_str);
+    debug!("Extractinc concepts: {}", concepts_str);
     let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
     let mut curr_depth = 0;
     let mut curr_concept_start_idx = 0;
@@ -23,7 +23,7 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
         }
 
         if curr_depth == 0 {
-            println!("Found concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
+            debug!("Found concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
             concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
             curr_concept_start_idx = i + 1; // Next concept starts on the next character
             i += 1;
@@ -39,7 +39,7 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
     //     }
 
     //     if curr_depth == 0 {
-    //         println!("Found concept: {}", &concepts_str[curr_concept_start_idx..i+1]);
+    //         debug!("Found concept: {}", &concepts_str[curr_concept_start_idx..i+1]);
     //         concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..i+1]));
     //         curr_concept_start_idx = i; // Next concept starts on the next character
     //     }
@@ -286,34 +286,34 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
     // let mut words = concept_str.split(' ').collect();
     let concept_str = concept_str.trim();
 
-    println!("Parsing concept: {}", concept_str);
+    debug!("Parsing concept: {}", concept_str);
 
     if &concept_str[..1] == "(" {
         // Our concept is wrapped up into brackets "(..)"
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
-        // println!("It is and!");
+        // debug!("It is and!");
         Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
-        // println!("It is or!");
+        // debug!("It is or!");
         Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
-        // println!("It is only!");
+        // debug!("It is only!");
         Box::new(OnlyConcept {
             relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
             subconcept: parse_concept(&concept_str[6..])
         })
     } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
-        // println!("It is some!");
+        // debug!("It is some!");
         Box::new(SomeConcept {
             relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
             subconcept: parse_concept(&concept_str[6..])
         })
     } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
-        println!("It is not!");
+        debug!("It is not!");
         Box::new(NotConcept { subconcept: parse_concept(&concept_str[3..]) })
     } else {
-        println!("It is an atomic concept!");
+        debug!("It is an atomic concept!");
         // This is an Atomic Concept!
         Box::new(AtomicConcept { name: concept_str.to_string() })
     }

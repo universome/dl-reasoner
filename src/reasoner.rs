@@ -3,41 +3,58 @@ use abox::*;
 use tbox::*;
 
 
-pub struct Model {
-    individuals: Vec<Individual>,
-    relations: Vec<Relation>,
-    concepts: Vec<(AtomicConcept, Individual)>
+// pub struct Model {
+//     individuals: Vec<Individual>,
+//     relations: Vec<Relation>,
+//     concepts: Vec<(AtomicConcept, Individual)>
+// }
+
+
+pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
+    let mut aboxes = vec![abox];
+
+    // TODO: check initial abox for consistency for O(n)
+    // just to see that it does not contain immediate inconsistencies
+    // Otherwise, we can feed abox via AND rule. Then we can skip the todo above.
+
+    while aboxes.len() > 0 {
+        debug!("Current number of aboxes: {}", aboxes.len());
+        let abox = aboxes.pop().unwrap();
+        let new_aboxes = perform_tableu_reasoning_step(&abox, &tbox);
+
+        if new_aboxes.is_empty() {
+            // Hooray! We have terminated! This means, that we are
+            debug!("Found a model: {}", abox);
+            return Some(abox);
+        }
+
+        let non_clashed_aboxes: Vec<ABox> = new_aboxes
+            .into_iter()
+            .filter(|a| a.is_consistent != Some(false))
+            .collect();
+
+        aboxes.extend(non_clashed_aboxes);
+    }
+
+    None
 }
 
+fn perform_tableu_reasoning_step(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
 
-// pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<Model> {
-//     let mut aboxes = vec![abox];
+    let new_abox =  apply_conjunction_rule(abox, tbox);
+    if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
-//     loop {
-//         if aboxes.is_empty() {
-//             debug!("We are out of aboxes");
-//         }
+    let new_aboxes = apply_disjunction_rule(abox, tbox);
+    if new_aboxes.len() > 0 { return new_aboxes; }
 
-//         let new_aboxes = perform_tableu_reasoning_step(abox, tbox);
-//         aboxes.extend(new_aboxes);
-//     }
+    let new_abox =  apply_only_rule(abox, tbox);
+    if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
-//     None
-// }
+    let new_abox =  apply_some_rule(abox, tbox);
+    if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
-// fn perform_tableu_reasoning_step(abox: ABox, tbox: TBox) -> Option<ABox> {
-//     if let Some(new_abox) = expand_with_and_rule(abox, tbox) {
-//         Some(new_abox)
-//     } else if Some(new_abox) = expand_with_or_rule(abox, tbox) {
-//         Some(new_abox)
-//     } else if Some(new_abox) = expand_with_only_rule(abox, tbox) {
-//         Some(new_abox)
-//     } else if Some(new_abox) = expand_with_some_rule(abox, tbox) {
-//         Some(new_abox)
-//     }
-
-//     None
-// }
+    vec![]
+}
 
 
 fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
