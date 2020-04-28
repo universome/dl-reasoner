@@ -63,6 +63,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let conjunction_axioms = extract_concept_axioms(abox, ConceptType::Conjunction);
 
     if conjunction_axioms.is_empty() {
+        debug!("Tried to expand AND rule, but there are no relevant axioms.");
         return None; // Cannot apply and-rule
     }
 
@@ -75,6 +76,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         .find(|new_axioms| !new_axioms.is_empty());
 
     if new_axioms.is_none() {
+        debug!("Tried to expand AND rule, but all axioms are already used.");
         return None; // We have not found any expandable and-rule
     }
 
@@ -91,10 +93,12 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     if num_applicable_axioms != new_axioms.len() {
         // Conjunction rule was applied and we got an incosistent abox
         new_abox.is_consistent = Some(false);
+        debug!("Tried to expand AND rule, but obtained an incosistent ABox.");
     }
 
     new_abox.axioms.extend(new_axioms);
 
+    debug!("Successfully expanded AND rule.");
     Some(new_abox)
 }
 
@@ -105,11 +109,9 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
     let disjunction_axioms = extract_concept_axioms(abox, ConceptType::Disjunction);
 
     if disjunction_axioms.is_empty() {
-        debug!("Tried to expand OR rule, but there are no some axioms.");
+        debug!("Tried to expand OR rule, but there are no relevant axioms.");
         return vec![]; // Cannot apply the rule
     }
-
-    // debug!("Found disjuntion axioms: {}", disjunction_axioms.iter().join("|"));
 
     for axiom in disjunction_axioms {
         let concept = axiom.concept.downcast_ref::<DisjunctionConcept>().unwrap();
@@ -122,6 +124,7 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
         }
 
         // Ok, good. We can now expand with the or-rule!
+        debug!("Successfully expanded OR rule.");
         return new_axioms
             .into_iter()
             .map(|a| create_new_abox_from_concept_axiom(a, abox))
@@ -138,7 +141,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let only_axioms = extract_concept_axioms(abox, ConceptType::Only);
 
     if only_axioms.is_empty() {
-        debug!("Tried to expand ONLY rule, but there are no some axioms.");
+        debug!("Tried to expand ONLY rule, but there are no relevant axioms.");
         return None;
     }
 
@@ -154,6 +157,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
             continue;
         }
 
+        debug!("Successfully expanded ONLY rule.");
         return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
     }
 
@@ -167,7 +171,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let some_axioms = extract_concept_axioms(abox, ConceptType::Some);
 
     if some_axioms.is_empty() {
-        debug!("Tried to expand SOME rule, but there are no some axioms.");
+        debug!("Tried to expand SOME rule, but there are no relevant axioms.");
         return None;
     }
 
@@ -194,6 +198,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         let mut new_abox = create_new_abox_from_concept_axiom(new_axiom, abox);
         new_abox.individuals.insert(new_individual);
 
+        debug!("Successfully expanded SOME rule.");
         return Some(new_abox);
     }
 

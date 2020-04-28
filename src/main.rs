@@ -36,5 +36,11 @@ fn main() {
     let abox = abox::parse_abox(&contents);
     debug!("Intiial ABox: {}", abox);
 
-    reasoner::tableau_reasoning(abox, tbox::TBox {});
+    match reasoner::tableau_reasoning(abox, tbox::TBox {}) {
+        None => info!("No model was found."),
+        Some(a) => {
+            info!("Found a model!");
+            info!("{}", abox::remove_non_atomic_concepts(&a));
+        }
+    }
 }

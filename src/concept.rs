@@ -199,7 +199,7 @@ pub struct ConjunctionConcept {
 
 impl fmt::Display for ConjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "and ({})", self.subconcepts.iter().map(|sc| sc.to_string()).collect::<Vec<String>>().join(" "))
+        write!(fmt, "and {}", self.subconcepts.iter().map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
     }
 }
 
@@ -220,7 +220,7 @@ pub struct DisjunctionConcept {
 
 impl fmt::Display for DisjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "or ({})", self.subconcepts.iter().map(|sc| sc.to_string()).collect::<Vec<String>>().join(" "))
+        write!(fmt, "or {}", self.subconcepts.iter().map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
     }
 }
 

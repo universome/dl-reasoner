@@ -8,8 +8,9 @@ use std::hash;
 use std::clone::Clone;
 use std::string;
 use std::collections::HashSet;
+use std::iter::FromIterator;
 
-use concept::{Individual, Relation, Concept, parse_concept};
+use concept::{Individual, Relation, Concept, ConceptType, parse_concept};
 
 
 pub fn parse_abox(abox_str: &str) -> ABox {
@@ -51,6 +52,25 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
     }
 
     abox.individuals.extend(individuals);
+}
+
+
+pub fn remove_non_atomic_concepts(abox: &ABox) -> ABox {
+    let mut new_abox = abox.clone();
+    let non_atomic_axioms = abox.axioms.clone().into_iter()
+        .filter(|a| {
+            if a.axiom_type() == ABoxAxiomType::Relation {
+                true
+            } else {
+                let a = a.downcast_ref::<ConceptAxiom>().unwrap();
+                a.concept.concept_type() == ConceptType::Atomic
+            }
+
+        })
+        .collect::<Vec<Box<dyn ABoxAxiom>>>();
+
+    new_abox.axioms = HashSet::from_iter(non_atomic_axioms);
+    new_abox
 }
 
 
