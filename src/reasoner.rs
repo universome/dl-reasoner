@@ -76,7 +76,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         .find(|new_axioms| !new_axioms.is_empty());
 
     if new_axioms.is_none() {
-        debug!("Tried to expand AND rule, but all axioms are already used.");
+        debug!("Tried to expand AND rule, but the expansion is already in ABox.");
         return None; // We have not found any expandable and-rule
     }
 
@@ -93,7 +93,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     if num_applicable_axioms != new_axioms.len() {
         // Conjunction rule was applied and we got an incosistent abox
         new_abox.is_consistent = Some(false);
-        debug!("Tried to expand AND rule, but obtained an incosistent ABox.");
+        debug!("Obtained an incosistency while expanding AND rule.");
     }
 
     new_abox.axioms.extend(new_axioms);
@@ -131,7 +131,7 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
             .collect::<Vec<ABox>>();
     }
 
-    debug!("All OR axioms are non-expandable: {}", abox);
+    debug!("All OR axioms are non-expandable.");
 
     vec![]
 }
@@ -161,7 +161,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         return Some(create_new_abox_from_concept_axiom(new_axiom.unwrap(), abox))
     }
 
-    debug!("All ONLY axioms are non-expandable: {}", abox);
+    debug!("All ONLY axioms are non-expandable.");
 
     None
 }
@@ -177,13 +177,17 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 
     for axiom in some_axioms {
         let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();
-        let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
-        let other_individuals_concepts = other_individuals
+        let rhs_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        debug!("Found rhs individuals: {}", rhs_individuals.iter().map(|x| x.name.to_string()).collect::<Vec<String>>().join(" "));
+        let rhs_concept_axiom = rhs_individuals
             .into_iter()
-            .map(|y| Box::new(ConceptAxiom {concept: Box::new(concept.clone()), individual: y}) as Box::<dyn ABoxAxiom>)
+            .map(|y| Box::new(ConceptAxiom {
+                concept: concept.subconcept.clone() as Box<dyn Concept>,
+                individual: y
+            }) as Box::<dyn ABoxAxiom>)
             .find(|a| abox.axioms.contains(a));
 
-        if other_individuals_concepts.is_some() {
+        if rhs_concept_axiom.is_some() {
             continue;
         }
 
@@ -191,18 +195,23 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         debug!("Creating new individual: {}", new_individual.name);
 
         let new_axiom = Box::new(ConceptAxiom {
-            concept: Box::new(concept.clone()) as Box<dyn Concept>,
+            concept: concept.subconcept.clone() as Box<dyn Concept>,
             individual: new_individual.clone()
         }) as Box<dyn ABoxAxiom>;
 
         let mut new_abox = create_new_abox_from_concept_axiom(new_axiom, abox);
-        new_abox.individuals.insert(new_individual);
+        new_abox.individuals.insert(new_individual.clone());
+        new_abox.axioms.insert(Box::new(RelationAxiom {
+            lhs: axiom.individual.clone(),
+            rhs: new_individual.clone(),
+            relation: concept.relation.clone()
+        }) as Box<dyn ABoxAxiom>);
 
-        debug!("Successfully expanded SOME rule.");
+        debug!("Successfully expanded SOME rule: {}", axiom);
         return Some(new_abox);
     }
 
-    debug!("All SOME axioms are non-expandable: {}", abox);
+    debug!("All SOME axioms are non-expandable.");
 
     None
 }
