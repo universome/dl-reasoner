@@ -219,9 +219,101 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
-// fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+    let at_least_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
 
-// }
+    if at_least_axioms.is_empty() {
+        debug!("Tried to expand AtLeast rule, but there are no relevant axioms.");
+        return None;
+    }
+
+    let expandable_axiom = at_least_axioms
+        .iter()
+        .find(|a| {
+            let concept = a.concept.downcast_ref::<AtLeastConcept>().unwrap();
+
+            // Pick rhs individuals for whom the relation holds
+            let others = extract_relation_rhs_individuals(&concept.relation, &a.individual, abox);
+
+            // Pick among them those individuals for whom the concept holds
+            let others_with_concepts = others.into_iter().filter(|x| {
+                abox.axioms.contains(&(Box::new(ConceptAxiom {
+                    individual: x.clone(),
+                    concept: concept.subconcept.clone()
+                }) as Box::<dyn ABoxAxiom>))
+            });
+
+            if others_with_concepts.clone().count() < concept.amount as usize {
+                return true;
+            }
+
+            // Ok, now the situation is tricky.
+            // We should check that there are at least n different individuals there
+            let mut num_edges = 0;
+
+            for x in others_with_concepts.clone() {
+                num_edges += others_with_concepts.clone()
+                    .filter(|y| &x.name != &y.name) // Filter out x itself
+                    .filter(|y| {
+                        abox.axioms.contains(&(Box::new(RelationAxiom {
+                            relation: Relation { name: "not_equals".to_string() },
+                            lhs: x.clone(),
+                            rhs: y.clone()
+                        }) as Box<dyn ABoxAxiom>))
+                    })
+                    .count();
+            }
+
+            // If the graph of size M >= N is not fully-connected, then we always can extract
+            // a subgraph of size N such that it is not fully-connected
+            num_edges < (others_with_concepts.count() - 1).pow(2)
+        });
+
+    if expandable_axiom.is_none() {
+        debug!("Tried to expand AtLeast rule, but the expansion is already in ABox.");
+        return None;
+    }
+
+    let mut new_abox = abox.clone();
+    let axiom = expandable_axiom.unwrap();
+    let concept = axiom.concept.downcast_ref::<AtLeastConcept>().unwrap();
+    let mut new_individuals = vec![];
+
+    for _ in 0..concept.amount {
+        let new_individual = Individual { name: format!("x_{}", new_abox.individuals.len()) };
+        debug!("Creating new individual: {}", new_individual.name);
+
+        new_abox.axioms.insert(Box::new(ConceptAxiom {
+            concept: concept.subconcept.clone() as Box<dyn Concept>,
+            individual: new_individual.clone()
+        }) as Box<dyn ABoxAxiom>);
+
+        new_abox.axioms.insert(Box::new(RelationAxiom {
+            relation: concept.relation.clone(),
+            lhs: axiom.individual.clone(),
+            rhs: new_individual.clone()
+        }) as Box<dyn ABoxAxiom>);
+
+        new_individuals.push(new_individual.clone());
+        new_abox.individuals.insert(new_individual.clone());
+    }
+
+    for x in new_individuals.clone() {
+        let other_new_individuals = new_individuals.iter()
+            .filter(|y| &y.name != &x.name)
+            .collect::<Vec<&Individual>>();
+
+        for y in other_new_individuals {
+            new_abox.axioms.insert(Box::new(RelationAxiom {
+                relation: Relation {name: "not_equals".to_string()},
+                lhs: x.clone(),
+                rhs: y.clone()
+            }) as Box<dyn ABoxAxiom>);
+        }
+    }
+
+    Some(new_abox)
+}
 
 
 fn extract_concept_axioms<'a>(abox: &'a ABox, concept_type: ConceptType) -> Vec<&'a ConceptAxiom> {
