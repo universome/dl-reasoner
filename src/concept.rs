@@ -51,8 +51,86 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
 }
 
 
+pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
+    // Parses concept or panics if the string is not a correct concept
+    // let mut words = concept_str.split(' ').collect();
+    let concept_str = concept_str.trim();
+
+    debug!("Parsing concept: {}", concept_str);
+
+    if &concept_str[..1] == "(" {
+        // Our concept is wrapped up into brackets "(..)"
+        parse_concept(&concept_str[1..(concept_str.len() - 1)])
+    } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
+        // debug!("It is and!");
+        Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
+    } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
+        // debug!("It is or!");
+        Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
+    } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
+        // debug!("It is only!");
+        Box::new(OnlyConcept {
+            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
+            subconcept: parse_concept(&concept_str[6..])
+        })
+    } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
+        // debug!("It is some!");
+        Box::new(SomeConcept {
+            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
+            subconcept: parse_concept(&concept_str[6..])
+        })
+    } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
+        debug!("It is not!");
+        Box::new(NotConcept { subconcept: parse_concept(&concept_str[3..]) })
+    } else if concept_str.len() > 2 && &concept_str[..2] == ">=" {
+        debug!("It is at_least!");
+        let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
+        let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let amount = concept_str[..delim_idx].parse::<u32>().unwrap();
+        let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
+
+        debug!("AtLeast amount: {}", amount);
+        debug!("AtLeast relation_name: {}", relation_name);
+
+        Box::new(AtLeastConcept {
+            amount: amount,
+            relation: Relation {name: relation_name},
+            subconcept: parse_concept(&concept_str[delim_idx + 3..])
+        })
+    } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
+        debug!("It is at_most!");
+        let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
+        let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let amount = concept_str[..delim_idx].parse::<u32>().unwrap();
+        let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
+
+        debug!("AtMost amount: {}", amount);
+        debug!("AtMost relation_name: {}", relation_name);
+
+        Box::new(AtMostConcept {
+            amount: amount,
+            relation: Relation {name: relation_name},
+            subconcept: parse_concept(&concept_str[delim_idx + 3..])
+        })
+    } else {
+        debug!("It is an atomic concept!");
+        // This is an Atomic Concept!
+        Box::new(AtomicConcept { name: concept_str.to_string() })
+    }
+}
+
+
 #[derive(PartialEq)]
-pub enum ConceptType {Atomic, Not, Conjunction, Disjunction, Some, Only}
+pub enum ConceptType {
+    Atomic,
+    Not,
+    Conjunction,
+    Disjunction,
+    Only,
+    Some,
+    AtLeast,
+    AtMost
+}
 
 pub trait Concept: fmt::Debug + fmt::Display + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
@@ -180,6 +258,24 @@ impl Concept for NotConcept {
                     relation: subconcept.relation.clone(),
                     subconcept: subconcept.subconcept.negate().convert_to_nnf()
                 })
+            },
+            ConceptType::AtLeast => {
+                // not [some A] => only [not A]
+                let subconcept = self.subconcept.downcast_ref::<AtLeastConcept>().unwrap();
+                Box::new(AtMostConcept {
+                    amount: subconcept.amount - 1,
+                    relation: subconcept.relation.clone(),
+                    subconcept: subconcept.subconcept.convert_to_nnf()
+                })
+            },
+            ConceptType::AtMost => {
+                // not [some A] => only [not A]
+                let subconcept = self.subconcept.downcast_ref::<AtMostConcept>().unwrap();
+                Box::new(AtLeastConcept {
+                    amount: subconcept.amount + 1,
+                    relation: subconcept.relation.clone(),
+                    subconcept: subconcept.subconcept.convert_to_nnf()
+                })
             }
         }
     }
@@ -280,44 +376,56 @@ impl Concept for SomeConcept {
     fn concept_type(&self) -> ConceptType { ConceptType::Some }
 }
 
+#[derive(Debug, Clone, Hash)]
+pub struct AtLeastConcept {
+    pub amount: u32,
+    pub relation: Relation,
+    pub subconcept: Box<dyn Concept>
+}
 
-pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
-    // Parses concept or panics if the string is not a correct concept
-    // let mut words = concept_str.split(' ').collect();
-    let concept_str = concept_str.trim();
-
-    debug!("Parsing concept: {}", concept_str);
-
-    if &concept_str[..1] == "(" {
-        // Our concept is wrapped up into brackets "(..)"
-        parse_concept(&concept_str[1..(concept_str.len() - 1)])
-    } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
-        // debug!("It is and!");
-        Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
-    } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
-        // debug!("It is or!");
-        Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
-    } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
-        // debug!("It is only!");
-        Box::new(OnlyConcept {
-            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            subconcept: parse_concept(&concept_str[6..])
-        })
-    } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
-        // debug!("It is some!");
-        Box::new(SomeConcept {
-            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            subconcept: parse_concept(&concept_str[6..])
-        })
-    } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
-        debug!("It is not!");
-        Box::new(NotConcept { subconcept: parse_concept(&concept_str[3..]) })
-    } else {
-        debug!("It is an atomic concept!");
-        // This is an Atomic Concept!
-        Box::new(AtomicConcept { name: concept_str.to_string() })
+impl fmt::Display for AtLeastConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, ">= {} {} {}", self.amount, self.relation.name, self.subconcept)
     }
 }
+
+impl Concept for AtLeastConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(AtLeastConcept {
+            amount: self.amount,
+            relation: self.relation.clone(),
+            subconcept: self.subconcept.convert_to_nnf()
+        })
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::AtLeast }
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct AtMostConcept {
+    pub amount: u32,
+    pub relation: Relation,
+    pub subconcept: Box<dyn Concept>
+}
+
+impl fmt::Display for AtMostConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "<= {} {} {}", self.amount, self.relation.name, self.subconcept)
+    }
+}
+
+impl Concept for AtMostConcept {
+    fn convert_to_nnf(&self) -> Box<dyn Concept> {
+        Box::new(AtMostConcept {
+            amount: self.amount,
+            relation: self.relation.clone(),
+            subconcept: self.subconcept.convert_to_nnf()
+        })
+    }
+
+    fn concept_type(&self) -> ConceptType { ConceptType::AtMost }
+}
+
 
 #[cfg(test)]
 mod tests {
