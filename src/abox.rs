@@ -19,7 +19,9 @@ pub fn parse_abox(abox_str: &str) -> ABox {
 
     for line in abox_str.lines() {
         debug!("Parsing line: {}", line);
-        add_abox_axiom(&mut abox, &line);
+        if line.len() > 0 && !line.starts_with('#') {
+            add_abox_axiom(&mut abox, &line);
+        }
     }
 
     abox

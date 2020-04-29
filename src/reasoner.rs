@@ -219,6 +219,11 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
+// fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+
+// }
+
+
 fn extract_concept_axioms<'a>(abox: &'a ABox, concept_type: ConceptType) -> Vec<&'a ConceptAxiom> {
     abox.axioms
         .iter()

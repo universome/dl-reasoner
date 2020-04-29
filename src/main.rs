@@ -29,14 +29,20 @@ fn main() {
         .apply();
 
     let args: Vec<String> = env::args().collect();
-    let filename = &args[1];
-    let contents = fs::read_to_string(filename)
-        .expect("Something went wrong reading the file");
 
-    let abox = abox::parse_abox(&contents);
-    debug!("Intiial ABox: {}", abox);
+    let abox_filename = &args[1];
+    let tbox_filename = &args[2];
 
-    match reasoner::tableau_reasoning(abox, tbox::TBox::new()) {
+    let abox_file_contents = fs::read_to_string(abox_filename).unwrap();
+    let tbox_file_contents = fs::read_to_string(tbox_filename).unwrap();
+
+    let abox = abox::parse_abox(&abox_file_contents);
+    debug!("Intiial abox: {}", abox);
+
+    let tbox = tbox::parse_tbox(&tbox_file_contents);
+    debug!("Intiial tbox: {}", tbox);
+
+    match reasoner::tableau_reasoning(abox, tbox) {
         None => info!("No model was found."),
         Some(a) => {
             info!("Found a model!");

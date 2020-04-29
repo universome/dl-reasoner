@@ -12,7 +12,10 @@ pub fn parse_tbox(tbox_str: &str) -> TBox {
 
     for line in tbox_str.lines() {
         debug!("Parsing line: {}", line);
-        tbox.axioms.insert(Box::new(parse_tbox_axiom(line)));
+
+        if line.len() > 0 && !line.starts_with('#') {
+            tbox.axioms.insert(Box::new(parse_tbox_axiom(line)));
+        }
     }
 
     tbox
