@@ -87,7 +87,7 @@ pub struct ABox {
 }
 
 impl ABox {
-    fn new() -> ABox {
+    pub fn new() -> ABox {
         ABox {
             axioms: HashSet::new(),
             is_consistent: None,

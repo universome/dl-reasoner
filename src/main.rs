@@ -36,7 +36,7 @@ fn main() {
     let abox = abox::parse_abox(&contents);
     debug!("Intiial ABox: {}", abox);
 
-    match reasoner::tableau_reasoning(abox, tbox::TBox {}) {
+    match reasoner::tableau_reasoning(abox, tbox::TBox::new()) {
         None => info!("No model was found."),
         Some(a) => {
             info!("Found a model!");
