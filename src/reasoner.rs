@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::iter::FromIterator;
+
 use concept::*;
 use abox::*;
 use tbox::*;
@@ -231,42 +234,24 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         .iter()
         .find(|a| {
             let concept = a.concept.downcast_ref::<AtLeastConcept>().unwrap();
+            let possible_rhs: HashSet<Individual> = HashSet::from_iter(extract_relation_rhs_individuals(&concept.relation, &a.individual, abox).iter().cloned());
 
-            // Pick rhs individuals for whom the relation holds
-            let others = extract_relation_rhs_individuals(&concept.relation, &a.individual, abox);
+            // Searching for a set of pairwise different individuals that would satisfy the constraints
+            abox.pairwise_different_individuals.iter().find(|&diff_individuals| {
+                if (diff_individuals.len() as u32) < concept.amount {
+                    return false;
+                }
 
-            // Pick among them those individuals for whom the concept holds
-            let others_with_concepts = others.into_iter().filter(|x| {
-                abox.axioms.contains(&(Box::new(ConceptAxiom {
-                    individual: x.clone(),
-                    concept: concept.subconcept.clone()
-                }) as Box::<dyn ABoxAxiom>))
-            });
+                diff_individuals.iter().all(|rhs| {
+                    let contains_relation = possible_rhs.contains(rhs);
+                    let contains_concept = abox.axioms.contains(&(Box::new(ConceptAxiom {
+                        individual: a.individual.clone(),
+                        concept: concept.subconcept.clone()
+                    }) as Box::<dyn ABoxAxiom>));
 
-            if others_with_concepts.clone().count() < concept.amount as usize {
-                return true;
-            }
-
-            // Ok, now the situation is tricky.
-            // We should check that there are at least n different individuals there
-            let mut num_edges = 0;
-
-            for x in others_with_concepts.clone() {
-                num_edges += others_with_concepts.clone()
-                    .filter(|y| &x.name != &y.name) // Filter out x itself
-                    .filter(|y| {
-                        abox.axioms.contains(&(Box::new(RelationAxiom {
-                            relation: Relation { name: "not_equals".to_string() },
-                            lhs: x.clone(),
-                            rhs: y.clone()
-                        }) as Box<dyn ABoxAxiom>))
-                    })
-                    .count();
-            }
-
-            // If the graph of size M >= N is not fully-connected, then we always can extract
-            // a subgraph of size N such that it is not fully-connected
-            num_edges < (others_with_concepts.count() - 1).pow(2)
+                    contains_relation && contains_concept
+                })
+            }).is_none() // I.e. "there are no such c_1, ..., c_n, that ..."
         });
 
     if expandable_axiom.is_none() {
@@ -277,40 +262,30 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let mut new_abox = abox.clone();
     let axiom = expandable_axiom.unwrap();
     let concept = axiom.concept.downcast_ref::<AtLeastConcept>().unwrap();
-    let mut new_individuals = vec![];
+    let mut new_individuals = HashSet::new();
 
     for _ in 0..concept.amount {
         let new_individual = Individual { name: format!("x_{}", new_abox.individuals.len()) };
         debug!("Creating new individual: {}", new_individual.name);
 
+        // Adding the concept
         new_abox.axioms.insert(Box::new(ConceptAxiom {
             concept: concept.subconcept.clone() as Box<dyn Concept>,
             individual: new_individual.clone()
         }) as Box<dyn ABoxAxiom>);
 
+        // Adding the relation
         new_abox.axioms.insert(Box::new(RelationAxiom {
             relation: concept.relation.clone(),
             lhs: axiom.individual.clone(),
             rhs: new_individual.clone()
         }) as Box<dyn ABoxAxiom>);
 
-        new_individuals.push(new_individual.clone());
+        new_individuals.insert(new_individual.clone());
         new_abox.individuals.insert(new_individual.clone());
     }
 
-    for x in new_individuals.clone() {
-        let other_new_individuals = new_individuals.iter()
-            .filter(|y| &y.name != &x.name)
-            .collect::<Vec<&Individual>>();
-
-        for y in other_new_individuals {
-            new_abox.axioms.insert(Box::new(RelationAxiom {
-                relation: Relation {name: "not_equals".to_string()},
-                lhs: x.clone(),
-                rhs: y.clone()
-            }) as Box<dyn ABoxAxiom>);
-        }
-    }
+    new_abox.pairwise_different_individuals.push(new_individuals);
 
     Some(new_abox)
 }

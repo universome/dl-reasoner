@@ -84,8 +84,8 @@ pub struct ABox {
     pub axioms: HashSet<Box<dyn ABoxAxiom>>,
     pub is_consistent: Option<bool>,
     pub is_complete: Option<bool>,
-    pub individuals: HashSet<Individual>
-    // pub axioms: Vec<Box<dyn ABoxAxiom>>
+    pub individuals: HashSet<Individual>,
+    pub pairwise_different_individuals: Vec<HashSet<Individual>>
 }
 
 impl ABox {
@@ -94,7 +94,8 @@ impl ABox {
             axioms: HashSet::new(),
             is_consistent: None,
             is_complete: None,
-            individuals: HashSet::new()
+            individuals: HashSet::new(),
+            pairwise_different_individuals: vec![]
         }
     }
 }
