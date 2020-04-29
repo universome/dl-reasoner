@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
 use concept::*;
@@ -255,7 +255,7 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         });
 
     if expandable_axiom.is_none() {
-        debug!("Tried to expand AtLeast rule, but the expansion is already in ABox.");
+        debug!("Tried to expand AtLeast rule, but possible expansions are already in ABox.");
         return None;
     }
 
@@ -292,6 +292,63 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     }
 
     Some(new_abox)
+}
+
+
+fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
+    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
+
+    if at_most_axioms.is_empty() {
+        debug!("Tried to expand AtMost rule, but there are no relevant axioms.");
+        return vec![];
+    }
+
+    for axiom in at_most_axioms {
+        let concept = axiom.concept.downcast_ref::<AtMostConcept>().unwrap();
+        let others = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        let others_with_concept = filter_by_concept(others, &concept.subconcept, abox);
+        let mut possible_replacements = HashMap::new();
+
+        for y in others_with_concept.clone() {
+            // Finding those individuals that do not have y ≠ z relation
+            // Since such relations are stored in abox.pairwise_different_individuals field
+            // We should iterate over them all to check if there both y and z are in the same set
+            // If there is not such a set, then we can use y to replace z
+            // and symmetrically replace z instead of y
+            // (but this latter case will be caught in an outer loop iteration for z)
+            let can_be_equal_to_y = others_with_concept.clone().into_iter().filter(|z| {
+                abox.pairwise_different_individuals
+                    .iter()
+                    .find(|xs| {xs.contains(&y) && xs.contains(&z)})
+                    .is_none()
+            }).collect::<Vec<Individual>>();
+
+            if !can_be_equal_to_y.is_empty() {
+                possible_replacements.insert(y, can_be_equal_to_y);
+            }
+        }
+
+        if possible_replacements.is_empty() {
+            continue;
+        }
+
+        debug!("We have found an AtMost axiom, which can be expanded: {}", axiom);
+
+        let mut new_aboxes = vec![];
+
+        for (x_old, replacements) in possible_replacements {
+            for x_new in replacements {
+                new_aboxes.push(replace_individual_in_abox(abox, x_old.clone(), x_new));
+            }
+        }
+
+        debug_assert!(new_aboxes.len() > 0);
+
+        return new_aboxes;
+    }
+
+    debug!("Tried to expand AtMost rule, but all possible expansions are already in ABox.");
+    vec![]
 }
 
 
@@ -359,4 +416,79 @@ fn is_at_least_concept_valid(abox: &ABox, individual: &Individual, concept: &AtL
             individual: individual.clone()
         }) as Box<dyn ABoxAxiom>))
     }).is_none()
+}
+
+
+fn filter_by_concept(individuals: Vec<Individual>, concept: &Box<dyn Concept>, abox: &ABox) -> Vec<Individual> {
+    individuals
+        .into_iter()
+        .filter(|x| {
+            abox.axioms.contains(&(Box::new(ConceptAxiom {
+                individual: x.clone(),
+                concept: concept.clone()
+            }) as Box<dyn ABoxAxiom>))
+        })
+        .collect()
+}
+
+
+fn replace_individual_in_abox(abox: &ABox, x_old: Individual, x_new: Individual) -> ABox {
+    debug_assert!(abox.individuals.contains(&x_old));
+    debug_assert!(abox.individuals.contains(&x_new));
+
+    let mut new_abox = abox.clone();
+
+    new_abox.axioms = HashSet::from_iter(new_abox.axioms.into_iter().map(|a| {
+        match a.axiom_type() {
+            ABoxAxiomType::Concept => {
+                let concept_axiom = a.downcast_ref::<ConceptAxiom>().unwrap();
+
+                if concept_axiom.individual != x_old {
+                    a
+                } else {
+                    Box::new(ConceptAxiom {
+                        concept: concept_axiom.concept.clone(),
+                        individual: x_new.clone()
+                    })
+                }
+            },
+            ABoxAxiomType::Relation => {
+                let relation_axiom = a.downcast_ref::<RelationAxiom>().unwrap();
+
+                if relation_axiom.lhs != x_old && relation_axiom.rhs != x_old {
+                    a
+                } else if relation_axiom.lhs == x_old {
+                    Box::new(RelationAxiom {
+                        lhs: x_new.clone(),
+                        rhs: relation_axiom.rhs.clone(),
+                        relation: relation_axiom.relation.clone()
+                    })
+                } else if relation_axiom.rhs == x_old {
+                    Box::new(RelationAxiom {
+                        lhs: relation_axiom.lhs.clone(),
+                        rhs: x_new.clone(),
+                        relation: relation_axiom.relation.clone()
+                    })
+                } else {
+                    unreachable!();
+                }
+            }
+        }
+    }));
+
+    for pairwise_diffs in &mut new_abox.pairwise_different_individuals {
+        if !pairwise_diffs.contains(&x_old) {
+            continue;
+        }
+
+        pairwise_diffs.remove(&x_old);
+
+        if pairwise_diffs.contains(&x_new) {
+            new_abox.is_consistent = Some(false);
+        } else {
+            pairwise_diffs.insert(x_new.clone());
+        }
+    }
+
+    new_abox
 }
