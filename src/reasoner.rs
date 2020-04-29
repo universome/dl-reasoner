@@ -287,6 +287,10 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 
     new_abox.pairwise_different_individuals.push(new_individuals);
 
+    if !is_at_least_concept_valid(&new_abox, &axiom.individual, &concept) {
+        new_abox.is_consistent = Some(false);
+    }
+
     Some(new_abox)
 }
 
@@ -340,4 +344,19 @@ fn extract_relation_rhs_individuals(relation: &Relation, individual: &Individual
         .filter(|ra| &ra.relation == relation && &ra.lhs == individual)
         .map(|ra| ra.rhs.clone())
         .collect::<Vec<Individual>>()
+}
+
+
+fn is_at_least_concept_valid(abox: &ABox, individual: &Individual, concept: &AtLeastConcept) -> bool {
+    // at_least concept is valid if there is no at_most concept with the smaller amount
+    (1..concept.amount).find(|&n| {
+        abox.axioms.contains(&(Box::new(ConceptAxiom {
+            concept: Box::new(AtMostConcept {
+                subconcept: concept.subconcept.clone(),
+                relation: concept.relation.clone(),
+                amount: n,
+            }) as Box<dyn Concept>,
+            individual: individual.clone()
+        }) as Box<dyn ABoxAxiom>))
+    }).is_none()
 }
