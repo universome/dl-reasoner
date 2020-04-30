@@ -404,7 +404,7 @@ fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
 
 
 fn apply_choose_rule(abox: &ABox) -> Vec<ABox> {
-    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
+    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtMost);
 
     if at_most_axioms.is_empty() {
         debug!("Tried to apply choose rule, but there are no relevant axioms.");
