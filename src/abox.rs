@@ -35,7 +35,8 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
     let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
     debug!("arguments string: {}", arguments_str);
     let individuals = arguments_str
-        .split(", ").map(|n| (Individual {name: n.to_string()}))
+        .chars().filter(|c| !c.is_whitespace()).collect::<String>()
+        .split(',').map(|n| (Individual {name: n.to_string()}))
         .collect::<Vec<_>>();
 
     if arguments_str.contains(",") {
@@ -166,7 +167,7 @@ impl fmt::Display for Model {
             .map(|(x, y)| format!("{} = {}", x.to_string(), y.to_string()))
             .collect::<Vec<String>>().join(", "));
 
-        write!(fmt, "Model:\n - {}\n - {}\n - {}\n - {}\n", individuals, concepts, relations, replacements)
+        write!(fmt, "Model:\n - {}\n - {}\n - {}\n - {}", individuals, concepts, relations, replacements)
     }
 }
 
