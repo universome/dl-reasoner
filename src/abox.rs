@@ -57,25 +57,6 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
 }
 
 
-pub fn remove_non_primitive_concepts(abox: &ABox) -> ABox {
-    let mut new_abox = abox.clone();
-    let non_atomic_axioms = abox.axioms.clone().into_iter()
-        .filter(|a| {
-            if a.axiom_type() == ABoxAxiomType::Relation {
-                true
-            } else {
-                let a = a.downcast_ref::<ConceptAxiom>().unwrap();
-                a.concept.concept_type() == ConceptType::Atomic
-            }
-
-        })
-        .collect::<Vec<Box<dyn ABoxAxiom>>>();
-
-    new_abox.axioms = HashSet::from_iter(non_atomic_axioms);
-    new_abox
-}
-
-
 #[derive(PartialEq)]
 pub enum ABoxAxiomType { Concept, Relation }
 
@@ -98,6 +79,25 @@ impl ABox {
             pairwise_different_individuals: vec![]
         }
     }
+
+    pub fn extract_model(&self) -> Model {
+        let mut model = Model::new();
+
+        model.individuals = self.individuals.clone().into_iter().collect::<Vec<Individual>>();
+        model.relation_axioms = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
+            .map(|a| a.downcast_ref::<RelationAxiom>().unwrap().clone())
+            .map(|a| a.clone())
+            .collect::<Vec<RelationAxiom>>();
+        model.concept_axioms = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
+            .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap().clone())
+            .filter(|a| a.concept.concept_type() == ConceptType::Atomic)
+            .map(|a| a.clone())
+            .collect::<Vec<ConceptAxiom>>();
+
+        model
+    }
 }
 
 impl fmt::Display for ABox {
@@ -106,6 +106,37 @@ impl fmt::Display for ABox {
             .map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
     }
 }
+
+
+pub struct Model {
+    individuals: Vec<Individual>,
+    concept_axioms: Vec<ConceptAxiom>,
+    relation_axioms: Vec<RelationAxiom>,
+}
+
+impl Model {
+    pub fn new() -> Model {
+        Model {
+            individuals: vec![],
+            concept_axioms: vec![],
+            relation_axioms: vec![],
+        }
+    }
+}
+
+impl fmt::Display for Model {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let individuals = format!("Individuals: {}", self.individuals.iter()
+            .map(|x| x.to_string()).collect::<Vec<String>>().join(", "));
+        let concepts = format!("Concepts: {}", self.concept_axioms.iter()
+            .map(|c| c.to_string()).collect::<Vec<String>>().join(", "));
+        let relations = format!("Relations: {}", self.relation_axioms.iter()
+            .map(|r| r.to_string()).collect::<Vec<String>>().join(", "));
+
+        write!(fmt, "Model:\n - {}\n - {}\n - {}\n", individuals, concepts, relations)
+    }
+}
+
 
 pub trait ABoxAxiom: fmt::Debug + fmt::Display + mopa::Any + ABoxAxiomClone {
     fn axiom_type(&self) -> ABoxAxiomType;
