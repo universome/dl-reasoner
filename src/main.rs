@@ -1,6 +1,7 @@
 #![allow(unused)]
 use std::env;
 use std::fs;
+use std::time::{Duration, Instant};
 
 #[macro_use] extern crate mopa;
 #[macro_use] extern crate log;
@@ -16,20 +17,29 @@ mod reasoner;
 fn main() {
     fern::Dispatch::new()
         .format(|out, message, record| {
+            // out.finish(format_args!(
+            //     "{}[{}][{}] {}",
+            //     chrono::Local::now().format("[%H:%M:%S]"),
+            //     record.target(),
+            //     record.level(),
+            //     message
+            // ))
             out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%H:%M:%S]"),
-                record.target(),
+                "[{}] {}",
                 record.level(),
                 message
             ))
         })
-        .level(log::LevelFilter::Debug)
+        .level(log::LevelFilter::Info)
+        // .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
         // .chain(fern::log_file("output.log"))
         .apply();
 
+    let start = Instant::now();
     run_reasoner();
+    let duration = start.elapsed();
+    info!("Running time: {:?}", duration);
 }
 
 fn run_reasoner() {
