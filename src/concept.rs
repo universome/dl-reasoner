@@ -9,7 +9,7 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
     // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
     // parses them individually and returns a vector of concepts.
     let concepts_str = concepts_str.trim();
-    debug!("Extractinc concepts: {}", concepts_str);
+    debug!("Extracting concepts: {}", concepts_str);
     let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
     let mut curr_depth = 0;
     let mut curr_concept_start_idx = 0;
@@ -23,7 +23,7 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
         }
 
         if curr_depth == 0 {
-            debug!("Found concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
+            debug!("Found a concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
             concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
             curr_concept_start_idx = i + 1; // Next concept starts on the next character
             i += 1;
@@ -62,11 +62,13 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         // Our concept is wrapped up into brackets "(..)"
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
-        let subconcepts = extract_concepts(&concept_str[3..]);
+        // Concept has the format "and (A B C)"
+        let subconcepts = extract_concepts(&concept_str[5..concept_str.len()-1]);
         assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
         Box::new(ConjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
-        let subconcepts = extract_concepts(&concept_str[2..]);
+        // Concept has the format "or (A B C)"
+        let subconcepts = extract_concepts(&concept_str[4..concept_str.len()-1]);
         assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
         Box::new(DisjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
