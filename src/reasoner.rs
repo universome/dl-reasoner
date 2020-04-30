@@ -372,6 +372,46 @@ fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
 }
 
 
+fn apply_choose_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
+    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
+
+    if at_most_axioms.is_empty() {
+        debug!("Tried to apply choose rule, but there are no relevant axioms.");
+        return vec![];
+    }
+
+    for axiom in at_most_axioms {
+        let concept = axiom.concept.downcast_ref::<AtMostConcept>().unwrap();
+        let others = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
+
+        for y in others {
+            let y_concept = Box::new(ConceptAxiom {
+                individual: y.clone(),
+                concept: concept.subconcept.clone()
+            }) as Box<dyn ABoxAxiom>;
+
+            let y_not_concept = Box::new(ConceptAxiom {
+                individual: y.clone(),
+                concept: concept.subconcept.negate().convert_to_nnf()
+            }) as Box<dyn ABoxAxiom>;
+
+            if !abox.axioms.contains(&y_concept) && !abox.axioms.contains(&y_not_concept) {
+                let mut new_abox_y = abox.clone();
+                let mut new_abox_y_not = abox.clone();
+
+                new_abox_y.axioms.insert(y_concept);
+                new_abox_y_not.axioms.insert(y_not_concept);
+
+                debug!("Successfully appled choose-rule for axiom {} and individual {}", axiom, y);
+                return vec![new_abox_y, new_abox_y_not];
+            }
+        }
+    }
+
+    vec![]
+}
+
+
 fn extract_concept_axioms<'a>(abox: &'a ABox, concept_type: ConceptType) -> Vec<&'a ConceptAxiom> {
     abox.axioms
         .iter()

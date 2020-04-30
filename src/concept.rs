@@ -184,6 +184,12 @@ impl fmt::Display for Relation {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Individual { pub name: String }
 
+impl fmt::Display for Individual {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
 #[derive(Debug, Clone, Hash)]
 pub struct AtomicConcept { name: String }
 
