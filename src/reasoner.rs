@@ -36,16 +36,36 @@ pub fn tableau_reasoning(abox: ABox, super_gci: Option<ConjunctionConcept>) -> O
 }
 
 fn perform_tableu_reasoning_step(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Vec<ABox> {
+    // 1. Trying "and-rule
     let new_abox =  apply_conjunction_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
+    // 2. Trying "or"-rule
     let new_aboxes = apply_disjunction_rule(abox);
     if new_aboxes.len() > 0 { return new_aboxes; }
 
+    // 3. Trying "only"-rule
     let new_abox =  apply_only_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
+    // 4. Trying "<="-rule
+    let new_aboxes =  apply_at_most_rule(abox);
+    if new_aboxes.len() > 0 { return new_aboxes; }
+
+    // 5. Trying "choose"-rule
+    let new_aboxes =  apply_choose_rule(abox);
+    if new_aboxes.len() > 0 { return new_aboxes; }
+
+    // 6. Trying "GCI"-rule
+    let new_abox = apply_gci_rule(abox, super_gci);
+    if new_abox.is_some() { return vec![new_abox.unwrap()]; }
+
+    // 7. Trying "some"-rule (lower prioritity since it is generative)
     let new_abox =  apply_some_rule(abox);
+    if new_abox.is_some() { return vec![new_abox.unwrap()]; }
+
+    // 8. Trying "at-least"-rule (lower prioritity since it is generative)
+    let new_abox =  apply_at_least_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
     vec![]
@@ -413,6 +433,31 @@ fn apply_choose_rule(abox: &ABox) -> Vec<ABox> {
     }
 
     vec![]
+}
+
+
+fn apply_gci_rule(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Option<ABox> {
+    if super_gci.is_none() {
+        return None;
+    }
+    let super_gci = super_gci.as_ref().unwrap();
+
+    for x in &abox.individuals {
+        let new_axiom = ConceptAxiom {
+            concept: Box::new(super_gci.clone()) as Box<dyn Concept>,
+            individual: x.clone()
+        };
+        let new_axiom = Box::new(new_axiom) as Box<dyn ABoxAxiom>;
+
+        if !abox.axioms.contains(&new_axiom) {
+            let mut new_abox = abox.clone();
+            debug!("Found a variable to apply the GCI: {}", new_axiom);
+            new_abox.axioms.insert(new_axiom);
+            return Some(new_abox);
+        }
+    }
+
+    None
 }
 
 
