@@ -145,13 +145,14 @@ pub enum ConceptType {
 
 pub trait Concept: fmt::Debug + fmt::Display + mopa::Any + ConceptClone {
     fn convert_to_nnf(&self) -> Box<dyn Concept>;
-
     fn concept_type(&self) -> ConceptType;
 
     fn negate(&self) -> Box<dyn Concept> {
         // Box::new(NotConcept{ subconcept: Box::new(self.clone()) })
         Box::new(NotConcept{ subconcept: Box::new(self).clone_box() })
     }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept>;
 }
 
 mopafy!(Concept);
@@ -228,6 +229,13 @@ impl Concept for AtomicConcept {
         Box::new(self.clone())
     }
     fn concept_type(&self) -> ConceptType { ConceptType::Atomic }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(self.clone()) as Box<dyn Concept>
+        }
+    }
 }
 
 impl fmt::Display for AtomicConcept {
@@ -239,12 +247,6 @@ impl fmt::Display for AtomicConcept {
 #[derive(Debug, Clone, Hash)]
 pub struct NotConcept {
     pub subconcept: Box<dyn Concept>
-}
-
-impl fmt::Display for NotConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "not {}", self.subconcept)
-    }
 }
 
 impl Concept for NotConcept {
@@ -264,9 +266,9 @@ impl Concept for NotConcept {
                 // Box::new(AtomicConcept { name: "123".to_string() })
                 Box::new(DisjunctionConcept {
                     subconcepts: subconcept.clone().subconcepts.iter()
-                        .map(|c| { c.negate() })
-                        .map(|c| {c.convert_to_nnf()})
-                        .collect()
+                    .map(|c| { c.negate() })
+                    .map(|c| {c.convert_to_nnf()})
+                    .collect()
                 })
             },
             ConceptType::Disjunction => {
@@ -274,9 +276,9 @@ impl Concept for NotConcept {
                 let subconcept = self.subconcept.downcast_ref::<DisjunctionConcept>().unwrap();
                 Box::new(ConjunctionConcept {
                     subconcepts: subconcept.clone().subconcepts.iter()
-                        .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
-                        .map(|c| {c.convert_to_nnf()})
-                        .collect()
+                    .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
+                    .map(|c| {c.convert_to_nnf()})
+                    .collect()
                 })
             },
             ConceptType::Only => {
@@ -321,19 +323,26 @@ impl Concept for NotConcept {
     fn negate(&self) -> Box<dyn Concept> {
         self.subconcept.clone() as Box<dyn Concept>
     }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(NotConcept {
+                subconcept: self.subconcept.replace_concept(concept_old, concept_new)
+            }) as Box<dyn Concept>
+        }
+    }
 }
 
+impl fmt::Display for NotConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "not {}", self.subconcept)
+    }
+}
 
 #[derive(Debug, Clone, Hash)]
 pub struct ConjunctionConcept {
     pub subconcepts: Vec<Box<dyn Concept>>
-}
-
-impl fmt::Display for ConjunctionConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "and {}", self.subconcepts.iter()
-            .map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
-    }
 }
 
 impl Concept for ConjunctionConcept {
@@ -344,6 +353,25 @@ impl Concept for ConjunctionConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::Conjunction }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match &self.to_string() == &concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(ConjunctionConcept {
+                subconcepts: self.subconcepts.clone()
+                    .iter()
+                    .map(|c| c.replace_concept(concept_old.clone(), concept_new.clone()))
+                    .collect::<Vec<Box<dyn Concept>>>()
+            }) as Box<dyn Concept>
+        }
+    }
+}
+
+impl fmt::Display for ConjunctionConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "and {}", self.subconcepts.iter()
+            .map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
+    }
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -366,18 +394,24 @@ impl Concept for DisjunctionConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::Disjunction }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match &self.to_string() == &concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(DisjunctionConcept {
+                subconcepts: self.subconcepts.clone()
+                    .iter()
+                    .map(|c| c.replace_concept(concept_old.clone(), concept_new.clone()))
+                    .collect::<Vec<Box<dyn Concept>>>()
+            }) as Box<dyn Concept>
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash)]
 pub struct OnlyConcept {
     pub subconcept: Box<dyn Concept>,
     pub relation: Relation
-}
-
-impl fmt::Display for OnlyConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "only {} {}", self.relation.name, self.subconcept)
-    }
 }
 
 impl Concept for OnlyConcept {
@@ -389,18 +423,28 @@ impl Concept for OnlyConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::Only }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(OnlyConcept {
+                relation: self.relation.clone(),
+                subconcept: self.subconcept.replace_concept(concept_old, concept_new)
+            }) as Box<dyn Concept>
+        }
+    }
+}
+
+impl fmt::Display for OnlyConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "only {} {}", self.relation.name, self.subconcept)
+    }
 }
 
 #[derive(Debug, Clone, Hash)]
 pub struct SomeConcept {
     pub subconcept: Box<dyn Concept>,
     pub relation: Relation
-}
-
-impl fmt::Display for SomeConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "some {} {}", self.relation.name, self.subconcept)
-    }
 }
 
 impl Concept for SomeConcept {
@@ -412,6 +456,22 @@ impl Concept for SomeConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::Some }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(SomeConcept {
+                relation: self.relation.clone(),
+                subconcept: self.subconcept.replace_concept(concept_old, concept_new)
+            }) as Box<dyn Concept>
+        }
+    }
+}
+
+impl fmt::Display for SomeConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "some {} {}", self.relation.name, self.subconcept)
+    }
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -419,12 +479,6 @@ pub struct AtLeastConcept {
     pub amount: usize,
     pub relation: Relation,
     pub subconcept: Box<dyn Concept>
-}
-
-impl fmt::Display for AtLeastConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, ">= {} {} {}", self.amount, self.relation.name, self.subconcept)
-    }
 }
 
 impl Concept for AtLeastConcept {
@@ -437,6 +491,23 @@ impl Concept for AtLeastConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::AtLeast }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(AtLeastConcept {
+                amount: self.amount,
+                relation: self.relation.clone(),
+                subconcept: self.subconcept.replace_concept(concept_old, concept_new)
+            }) as Box<dyn Concept>
+        }
+    }
+}
+
+impl fmt::Display for AtLeastConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, ">= {} {} {}", self.amount, self.relation.name, self.subconcept)
+    }
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -444,12 +515,6 @@ pub struct AtMostConcept {
     pub amount: usize,
     pub relation: Relation,
     pub subconcept: Box<dyn Concept>
-}
-
-impl fmt::Display for AtMostConcept {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "<= {} {} {}", self.amount, self.relation.name, self.subconcept)
-    }
 }
 
 impl Concept for AtMostConcept {
@@ -462,6 +527,23 @@ impl Concept for AtMostConcept {
     }
 
     fn concept_type(&self) -> ConceptType { ConceptType::AtMost }
+
+    fn replace_concept(&self, concept_old: Box<dyn Concept>, concept_new: Box<dyn Concept>) -> Box<dyn Concept> {
+        match self.to_string() == concept_old.to_string() {
+            true => concept_new,
+            false => Box::new(AtMostConcept {
+                amount: self.amount,
+                relation: self.relation.clone(),
+                subconcept: self.subconcept.replace_concept(concept_old, concept_new)
+            }) as Box<dyn Concept>
+        }
+    }
+}
+
+impl fmt::Display for AtMostConcept {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "<= {} {} {}", self.amount, self.relation.name, self.subconcept)
+    }
 }
 
 
