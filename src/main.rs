@@ -36,13 +36,18 @@ fn main() {
     let abox_file_contents = fs::read_to_string(abox_filename).unwrap();
     let tbox_file_contents = fs::read_to_string(tbox_filename).unwrap();
 
-    let abox = abox::parse_abox(&abox_file_contents);
+    let mut abox = abox::parse_abox(&abox_file_contents);
     debug!("Intiial abox: {}", abox);
 
-    let tbox = tbox::parse_tbox(&tbox_file_contents);
+    let mut tbox = tbox::parse_tbox(&tbox_file_contents);
     debug!("Intiial tbox: {}", tbox);
 
-    match reasoner::tableau_reasoning(abox, tbox) {
+    tbox.expand_all_definitions();
+    tbox.apply_definitions_to_abox(&mut abox);
+    tbox.apply_definitions_to_inclusions();
+    let super_gci = tbox.aggregate_inclusions();
+
+    match reasoner::tableau_reasoning(abox, super_gci) {
         None => info!("No model was found."),
         Some(a) => {
             info!("Found a model!");

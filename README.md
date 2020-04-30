@@ -16,6 +16,7 @@ For more information on ALCQ and the corresponding tableau algorithm refer to [A
     - "at-most"-rule expansion
     - choose-rule expansion
     - GCI expansion
+- Interdependent definitions expansion
 - Concept definitions and concept subsumptions in TBox
 - Blocking with order (to prevent cycling blocking)
 
@@ -31,5 +32,5 @@ cargo build --release
 ### TODO
 - tests
 - print error messages instead of just panicking
-- remove unnecessary memory allocations
+- remove unnecessary heap allocations
 - backtracking

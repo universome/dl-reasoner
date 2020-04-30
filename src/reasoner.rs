@@ -6,14 +6,7 @@ use abox::*;
 use tbox::*;
 
 
-// pub struct Model {
-//     individuals: Vec<Individual>,
-//     relations: Vec<Relation>,
-//     concepts: Vec<(AtomicConcept, Individual)>
-// }
-
-
-pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
+pub fn tableau_reasoning(abox: ABox, super_gci: Option<ConjunctionConcept>) -> Option<ABox> {
     debug!("\n\n<======== Starting tableau algorithm ========>\n");
     let mut aboxes = vec![abox];
 
@@ -24,7 +17,7 @@ pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
     while aboxes.len() > 0 {
         debug!("Current number of aboxes: {}", aboxes.len());
         let abox = aboxes.pop().unwrap();
-        let new_aboxes = perform_tableu_reasoning_step(&abox, &tbox);
+        let new_aboxes = perform_tableu_reasoning_step(&abox, &super_gci);
 
         if new_aboxes.is_empty() {
             // Hooray! We have terminated! This means, that we have reached a consistent leave
@@ -42,24 +35,24 @@ pub fn tableau_reasoning(abox: ABox, tbox: TBox) -> Option<ABox> {
     None
 }
 
-fn perform_tableu_reasoning_step(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
-    let new_abox =  apply_conjunction_rule(abox, tbox);
+fn perform_tableu_reasoning_step(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Vec<ABox> {
+    let new_abox =  apply_conjunction_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
-    let new_aboxes = apply_disjunction_rule(abox, tbox);
+    let new_aboxes = apply_disjunction_rule(abox);
     if new_aboxes.len() > 0 { return new_aboxes; }
 
-    let new_abox =  apply_only_rule(abox, tbox);
+    let new_abox =  apply_only_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
-    let new_abox =  apply_some_rule(abox, tbox);
+    let new_abox =  apply_some_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
     vec![]
 }
 
 
-fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+fn apply_conjunction_rule(abox: &ABox) -> Option<ABox> {
     /// This function applies all conjunction axioms it finds at the current level
     /// (since they do not create any additional nodes, we can apply them all at once)
     let conjunction_axioms = extract_concept_axioms(abox, ConceptType::Conjunction);
@@ -105,7 +98,7 @@ fn apply_conjunction_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
-fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
+fn apply_disjunction_rule(abox: &ABox) -> Vec<ABox> {
     /// This function expands a single disjunction rule among all the disjunction rules
     /// it finds at the current level. It expands the first one expandable.
     let disjunction_axioms = extract_concept_axioms(abox, ConceptType::Disjunction);
@@ -139,7 +132,7 @@ fn apply_disjunction_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
 }
 
 
-fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+fn apply_only_rule(abox: &ABox) -> Option<ABox> {
     let only_axioms = extract_concept_axioms(abox, ConceptType::Only);
 
     if only_axioms.is_empty() {
@@ -172,7 +165,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
-fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+fn apply_some_rule(abox: &ABox) -> Option<ABox> {
     let some_axioms = extract_concept_axioms(abox, ConceptType::Some);
 
     if some_axioms.is_empty() {
@@ -228,7 +221,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
-fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
+fn apply_at_least_rule(abox: &ABox) -> Option<ABox> {
     let at_least_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
 
     if at_least_axioms.is_empty() {
@@ -308,7 +301,7 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 }
 
 
-fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
+fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
     let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
 
     if at_most_axioms.is_empty() {
@@ -383,7 +376,7 @@ fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
 }
 
 
-fn apply_choose_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
+fn apply_choose_rule(abox: &ABox) -> Vec<ABox> {
     let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
 
     if at_most_axioms.is_empty() {
