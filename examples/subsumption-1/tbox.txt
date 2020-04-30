@@ -1,0 +1,1 @@
+(and ((only r (only s A)) (some r (only s B)) (only r (some s C)))) -> some r (some s (and (A B C)))

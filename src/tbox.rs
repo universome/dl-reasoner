@@ -142,7 +142,7 @@ impl TBox {
 
         let subconcepts = inclusions
             .into_iter()
-            .map(|ta| {DisjunctionConcept {subconcepts: vec![ta.lhs.negate(), ta.rhs]}})
+            .map(|ta| {DisjunctionConcept {subconcepts: vec![ta.lhs.negate().convert_to_nnf(), ta.rhs]}})
             .map(|a| Box::new(a) as Box<dyn Concept>)
             .collect::<Vec<Box<dyn Concept>>>();
 

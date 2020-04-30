@@ -6,7 +6,7 @@ use abox::*;
 use tbox::*;
 
 
-pub fn tableau_reasoning(abox: ABox, super_gci: Option<ConjunctionConcept>) -> Option<ABox> {
+pub fn tableau_reasoning(abox: ABox, super_concept: Option<Box<dyn Concept>>) -> Option<ABox> {
     debug!("\n\n<======== Starting tableau algorithm ========>\n");
     let mut aboxes = vec![abox];
 
@@ -17,7 +17,8 @@ pub fn tableau_reasoning(abox: ABox, super_gci: Option<ConjunctionConcept>) -> O
     while aboxes.len() > 0 {
         debug!("Current number of aboxes: {}", aboxes.len());
         let abox = aboxes.pop().unwrap();
-        let new_aboxes = perform_tableu_reasoning_step(&abox, &super_gci);
+        debug!("Considering {}", abox);
+        let new_aboxes = perform_tableu_reasoning_step(&abox, &super_concept);
 
         if new_aboxes.is_empty() {
             // Hooray! We have terminated! This means, that we have reached a consistent leave
@@ -35,7 +36,7 @@ pub fn tableau_reasoning(abox: ABox, super_gci: Option<ConjunctionConcept>) -> O
     None
 }
 
-fn perform_tableu_reasoning_step(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Vec<ABox> {
+fn perform_tableu_reasoning_step(abox: &ABox, super_concept: &Option<Box<dyn Concept>>) -> Vec<ABox> {
     // 1. Trying "and-rule
     let new_abox =  apply_conjunction_rule(abox);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
@@ -57,7 +58,7 @@ fn perform_tableu_reasoning_step(abox: &ABox, super_gci: &Option<ConjunctionConc
     if new_aboxes.len() > 0 { return new_aboxes; }
 
     // 6. Trying "GCI"-rule
-    let new_abox = apply_gci_rule(abox, super_gci);
+    let new_abox = apply_gci_rule(abox, super_concept);
     if new_abox.is_some() { return vec![new_abox.unwrap()]; }
 
     // 7. Trying "some"-rule (lower prioritity since it is generative)
@@ -78,7 +79,7 @@ fn apply_conjunction_rule(abox: &ABox) -> Option<ABox> {
     let conjunction_axioms = extract_concept_axioms(abox, ConceptType::Conjunction);
 
     if conjunction_axioms.is_empty() {
-        debug!("Tried to expand AND rule, but there are no relevant axioms in the abox: {}", abox);
+        debug!("Tried to expand AND rule, but there are no relevant axioms.");
         return None; // Cannot apply and-rule
     }
 
@@ -194,8 +195,8 @@ fn apply_some_rule(abox: &ABox) -> Option<ABox> {
     }
 
     for axiom in some_axioms {
-        if check_if_blocked(abox, &axiom.individual) {
-            debug!("Tried to expand {}, but it is blocked.", axiom);
+        if let Some(x) = find_blocker(abox, &axiom.individual) {
+            debug!("Tried to expand {}, but it is blocked by {}.", axiom, x);
             return None;
         }
 
@@ -254,8 +255,8 @@ fn apply_at_least_rule(abox: &ABox) -> Option<ABox> {
         .find(|a| {
             let concept = a.concept.downcast_ref::<AtLeastConcept>().unwrap();
 
-            if check_if_blocked(abox, &a.individual) {
-                debug!("Tried to expand {}, but it is blocked.", a);
+            if let Some(x) = find_blocker(abox, &a.individual) {
+                debug!("Tried to expand {}, but it is blocked by {}.", a, x);
                 return false;
             }
 
@@ -436,15 +437,16 @@ fn apply_choose_rule(abox: &ABox) -> Vec<ABox> {
 }
 
 
-fn apply_gci_rule(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Option<ABox> {
-    if super_gci.is_none() {
+fn apply_gci_rule(abox: &ABox, super_concept: &Option<Box<dyn Concept>>) -> Option<ABox> {
+    if super_concept.is_none() {
+        debug!("Tried to apply GCI, but there is no GCI.");
         return None;
     }
-    let super_gci = super_gci.as_ref().unwrap();
+    let super_concept = super_concept.as_ref().unwrap();
 
     for x in &abox.individuals {
         let new_axiom = ConceptAxiom {
-            concept: Box::new(super_gci.clone()) as Box<dyn Concept>,
+            concept: super_concept.clone(),
             individual: x.clone()
         };
         let new_axiom = Box::new(new_axiom) as Box<dyn ABoxAxiom>;
@@ -456,6 +458,8 @@ fn apply_gci_rule(abox: &ABox, super_gci: &Option<ConjunctionConcept>) -> Option
             return Some(new_abox);
         }
     }
+
+    debug!("Tried to apply GCI, but there are no expandable individuals.");
 
     None
 }
@@ -504,13 +508,13 @@ fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, abox: &ABox) ->
 }
 
 
-fn check_if_blocked(abox: &ABox, y: &Individual) -> bool {
-    /// Checks if the individual x is blocked by some other individual
+fn find_blocker(abox: &ABox, y: &Individual) -> Option<Individual> {
+    /// Checks if the individual y is blocked by some other individual
     abox.individuals
-        .iter()
-        .filter(|x| x != &y)
+        .clone()
+        .into_iter()
+        .filter(|x| &x != &y)
         .find(|x| is_blocking(abox, x, y))
-        .is_none()
 }
 
 
@@ -519,7 +523,8 @@ fn is_blocking(abox: &ABox, lhs: &Individual, rhs: &Individual) -> bool {
     // If lhs is younger, then it cannot block rhs
     !lhs.is_younger(rhs) && abox.axioms
         .iter()
-        .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap())
+        .filter(|a| a.axiom_type() == ABoxAxiomType::Concept)
+        .map(|a| {a.downcast_ref::<ConceptAxiom>().unwrap()})
         .filter(|ca| &ca.individual == rhs)
         .map(|ca| Box::new(ConceptAxiom {
             concept: ca.concept.clone(),

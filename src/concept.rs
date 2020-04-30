@@ -219,9 +219,9 @@ impl Individual {
     pub fn is_younger(&self, other: &Individual) -> bool {
         // Checks if lhs is possible younger than other
 
-        if !self.name.starts_with("_#") {
+        if !self.name.starts_with("x_#") {
             return false; // This is an original (ancient) individual
-        } else if other.name.starts_with("_#") {
+        } else if other.name.starts_with("x_#") {
             return true;
         } else {
             let self_num = self.name[3..].parse::<usize>().unwrap();
@@ -284,9 +284,9 @@ impl Concept for NotConcept {
                 // Box::new(AtomicConcept { name: "123".to_string() })
                 Box::new(DisjunctionConcept {
                     subconcepts: subconcept.clone().subconcepts.iter()
-                    .map(|c| { c.negate() })
-                    .map(|c| {c.convert_to_nnf()})
-                    .collect()
+                        .map(|c| { c.negate() })
+                        .map(|c| {c.convert_to_nnf()})
+                        .collect()
                 })
             },
             ConceptType::Disjunction => {
@@ -294,9 +294,9 @@ impl Concept for NotConcept {
                 let subconcept = self.subconcept.downcast_ref::<DisjunctionConcept>().unwrap();
                 Box::new(ConjunctionConcept {
                     subconcepts: subconcept.clone().subconcepts.iter()
-                    .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
-                    .map(|c| {c.convert_to_nnf()})
-                    .collect()
+                        .map(|c| { Box::new(NotConcept{ subconcept: c.clone() }) })
+                        .map(|c| {c.convert_to_nnf()})
+                        .collect()
                 })
             },
             ConceptType::Only => {

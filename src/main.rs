@@ -53,7 +53,7 @@ fn run_reasoner() {
             tbox.expand_all_definitions();
             tbox.apply_definitions_to_abox(&mut abox);
             tbox.apply_definitions_to_inclusions();
-            let super_gci = tbox.aggregate_inclusions();
+            let super_gci = tbox.aggregate_inclusions().map(|c| Box::new(c) as Box<dyn concept::Concept>);
 
             debug!("Abox after definitions applied: {}", abox);
 
@@ -81,14 +81,15 @@ fn run_reasoner() {
             // Initialzing ABox
             let mut abox = abox::ABox::new();
             let x = concept::Individual {name: "a".to_string()};
-            let concept = Box::new(super_gci.unwrap()) as Box<dyn concept::Concept>;
+            let super_concept = Box::new(super_gci.clone().unwrap()) as Box<dyn concept::Concept>;
+            let super_concept = super_concept.negate().convert_to_nnf();
             abox.individuals.insert(x.clone());
             abox.axioms.insert(Box::new(abox::ConceptAxiom {
-                concept: concept.negate().convert_to_nnf(),
+                concept: super_concept.clone(),
                 individual: x,
             }) as Box<dyn abox::ABoxAxiom>);
 
-            match reasoner::tableau_reasoning(abox, None) {
+            match reasoner::tableau_reasoning(abox, Some(super_concept)) {
                 None => info!("Subsimption is valid."),
                 Some(a) => info!("Subsimption is not valid.")
             }
