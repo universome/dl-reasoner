@@ -62,11 +62,16 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         // Our concept is wrapped up into brackets "(..)"
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
-        Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
+        let subconcepts = extract_concepts(&concept_str[3..]);
+        assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
+        Box::new(ConjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
-        Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
+        let subconcepts = extract_concepts(&concept_str[2..]);
+        assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
+        Box::new(DisjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
-        let space_idx = concept_str[5..].chars().position(|c| c == ' ').unwrap();
+        let space_idx = concept_str[5..].chars().position(|c| c == ' ')
+            .expect(&format!("Bad format for `only` concept: {}", concept_str));
         let relation_name = concept_str[..space_idx].to_string();
 
         Box::new(OnlyConcept {
@@ -74,7 +79,8 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
             relation: Relation {name: relation_name},
         })
     } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
-        let space_idx = concept_str[5..].chars().position(|c| c == ' ').unwrap();
+        let space_idx = concept_str[5..].chars().position(|c| c == ' ')
+            .expect(&format!("Bad format for `only` concept: {}", concept_str));
         let relation_name = concept_str[..space_idx].to_string();
 
         Box::new(SomeConcept {
@@ -87,12 +93,15 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
 
         // Extract amount
-        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..space_idx].parse::<usize>().unwrap();
+        let space_idx = concept_str.chars().position(|c| c == ' ')
+            .expect(&format!("Bad format to extract amount from `at_least` concept: {}", concept_str));
+        let amount = concept_str[..space_idx].parse::<usize>()
+            .expect(&format!("Bad format of `amount` for `at_least` concept: {}", concept_str));
 
         // Extract relation name
         let concept_str = concept_str[space_idx..].trim(); // Has the form "relation Concept" now
-        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let space_idx = concept_str.chars().position(|c| c == ' ')
+            .expect(&format!("Bad format to extract relation from `at_least` concept: {}", concept_str));
         let relation_name = concept_str[..space_idx].to_string();
 
         debug!("AtMost amount: {}", amount);
@@ -108,12 +117,15 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
 
         // Extract amount
-        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..space_idx].parse::<usize>().unwrap();
+        let space_idx = concept_str.chars().position(|c| c == ' ')
+            .expect(&format!("Bad format to extract amount from `at_most` concept: {}", concept_str));
+        let amount = concept_str[..space_idx].parse::<usize>()
+            .expect(&format!("Bad format of `amount` for `at_most` concept: {}", concept_str));
 
         // Extract relation name
         let concept_str = concept_str[space_idx..].trim(); // Has the form "myRelation MyConcept" now
-        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let space_idx = concept_str.chars().position(|c| c == ' ')
+            .expect(&format!("Bad format to extract relation from `at_most` concept: {}", concept_str));
         let relation_name = concept_str[..space_idx].to_string();
 
         debug!("AtMost amount: {}", amount);
