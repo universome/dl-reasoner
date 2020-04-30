@@ -83,7 +83,7 @@ fn run_reasoner() {
             let x = concept::Individual {name: "a".to_string()};
             let super_concept = Box::new(super_gci.clone().unwrap()) as Box<dyn concept::Concept>;
             let super_concept = super_concept.negate().convert_to_nnf();
-            abox.individuals.insert(x.clone());
+            abox.add_individual(x.clone());
             abox.axioms.insert(Box::new(abox::ConceptAxiom {
                 concept: super_concept.clone(),
                 individual: x,

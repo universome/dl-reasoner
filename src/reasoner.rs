@@ -202,8 +202,6 @@ fn apply_some_rule(abox: &ABox) -> Option<ABox> {
 
         let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();
         let rhs_individuals = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
-        debug!("Found rhs individuals: {}", rhs_individuals.iter()
-            .map(|x| x.name.to_string()).collect::<Vec<String>>().join(" "));
         let rhs_concept_axiom = rhs_individuals
             .into_iter()
             .map(|y| Box::new(ConceptAxiom {
@@ -225,7 +223,7 @@ fn apply_some_rule(abox: &ABox) -> Option<ABox> {
         }) as Box<dyn ABoxAxiom>;
 
         let mut new_abox = create_new_abox_from_concept_axiom(new_axiom, abox);
-        new_abox.individuals.insert(new_individual.clone());
+        new_abox.add_individual(new_individual.clone());
         new_abox.axioms.insert(Box::new(RelationAxiom {
             lhs: axiom.individual.clone(),
             rhs: new_individual.clone(),
@@ -309,7 +307,7 @@ fn apply_at_least_rule(abox: &ABox) -> Option<ABox> {
         }) as Box<dyn ABoxAxiom>);
 
         new_individuals.insert(new_individual.clone());
-        new_abox.individuals.insert(new_individual.clone());
+        new_abox.add_individual(new_individual.clone());
     }
 
     new_abox.pairwise_different_individuals.push(new_individuals);
@@ -323,7 +321,7 @@ fn apply_at_least_rule(abox: &ABox) -> Option<ABox> {
 
 
 fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
-    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtLeast);
+    let at_most_axioms = extract_concept_axioms(abox, ConceptType::AtMost);
 
     if at_most_axioms.is_empty() {
         debug!("Tried to expand AtMost rule, but there are no relevant axioms.");
@@ -348,12 +346,14 @@ fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
             // If there is not such a set, then we can use y to replace z
             // and symmetrically replace z instead of y
             // (but this latter case will be caught in an outer loop iteration for z)
-            let can_be_equal_to_y = others_with_concept.clone().into_iter().filter(|z| {
-                abox.pairwise_different_individuals
-                    .iter()
-                    .find(|xs| {xs.contains(&y) && xs.contains(&z)})
-                    .is_none()
-            }).collect::<Vec<Individual>>();
+            let can_be_equal_to_y = others_with_concept.clone().into_iter()
+                .filter(|z| z.name != y.name)
+                .filter(|z| {
+                    abox.pairwise_different_individuals
+                        .iter()
+                        .find(|xs| {xs.contains(&y) && xs.contains(&z)})
+                        .is_none()
+                }).collect::<Vec<Individual>>();
 
             if !can_be_equal_to_y.is_empty() {
                 replacements.insert(y, can_be_equal_to_y);
@@ -372,8 +372,13 @@ fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
 
         for x_old in replacements.clone().keys() {
             if variables_to_keep.contains(x_old) {
-                replacements.insert(x_old.clone(), replacements[x_old].clone()
-                    .into_iter().filter(|x| variables_to_keep.contains(&x)).collect());
+                let replacements_for_x_old = replacements[x_old]
+                    .clone()
+                    .into_iter()
+                    .filter(|x| variables_to_keep.contains(&x))
+                    .collect();
+
+                replacements.insert(x_old.clone(), replacements_for_x_old);
             } else {
                 replacements.remove(x_old);
             }
@@ -383,6 +388,7 @@ fn apply_at_most_rule(abox: &ABox) -> Vec<ABox> {
 
         for (x_old, xs_new) in replacements {
             for x_new in xs_new {
+                debug!("Replacing {} with {}", x_old, x_new);
                 new_aboxes.push(replace_individual_in_abox(abox, x_old.clone(), x_new));
             }
         }
@@ -535,7 +541,7 @@ fn is_blocking(abox: &ABox, lhs: &Individual, rhs: &Individual) -> bool {
 
 
 fn extract_rhs_for_relation(relation: &Relation, individual: &Individual, abox: &ABox) -> Vec<Individual> {
-    return abox.axioms
+    abox.axioms
         .iter()
         .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
         .map(|a| a.downcast_ref::<RelationAxiom>().unwrap())
@@ -618,6 +624,9 @@ fn replace_individual_in_abox(abox: &ABox, x_old: Individual, x_new: Individual)
         }
     }));
 
+    new_abox.individuals = HashSet::from_iter(new_abox.individuals
+        .into_iter().filter(|x| x.name != x_old.name));
+
     for pairwise_diffs in &mut new_abox.pairwise_different_individuals {
         if !pairwise_diffs.contains(&x_old) {
             continue;
@@ -631,6 +640,8 @@ fn replace_individual_in_abox(abox: &ABox, x_old: Individual, x_new: Individual)
             pairwise_diffs.insert(x_new.clone());
         }
     }
+
+    new_abox.replacements.insert(x_old, x_new);
 
     new_abox
 }

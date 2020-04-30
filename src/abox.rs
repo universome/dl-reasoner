@@ -7,10 +7,10 @@ use std::fmt;
 use std::hash;
 use std::clone::Clone;
 use std::string;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
-use concept::{Individual, Relation, Concept, ConceptType, parse_concept};
+use concept::{Individual, Relation, Concept, AtomicConcept, ConceptType, parse_concept};
 
 
 pub fn parse_abox(abox_str: &str) -> ABox {
@@ -35,7 +35,7 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
     let arguments_str = &axiom_str[start_idx+1..end_idx].trim();
     debug!("arguments string: {}", arguments_str);
     let individuals = arguments_str
-        .split(",").map(|n| (Individual {name: n.to_string()}))
+        .split(", ").map(|n| (Individual {name: n.to_string()}))
         .collect::<Vec<_>>();
 
     if arguments_str.contains(",") {
@@ -53,7 +53,9 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
         }));
     }
 
-    abox.individuals.extend(individuals);
+    for x in individuals {
+        abox.add_individual(x);
+    }
 }
 
 
@@ -66,7 +68,8 @@ pub struct ABox {
     pub is_consistent: Option<bool>,
     pub is_complete: Option<bool>,
     pub individuals: HashSet<Individual>,
-    pub pairwise_different_individuals: Vec<HashSet<Individual>>
+    pub pairwise_different_individuals: Vec<HashSet<Individual>>,
+    pub replacements: HashMap<Individual, Individual>
 }
 
 impl ABox {
@@ -76,7 +79,8 @@ impl ABox {
             is_consistent: None,
             is_complete: None,
             individuals: HashSet::new(),
-            pairwise_different_individuals: vec![]
+            pairwise_different_individuals: vec![],
+            replacements: HashMap::new()
         }
     }
 
@@ -90,20 +94,44 @@ impl ABox {
             .map(|a| a.clone())
             .collect::<Vec<RelationAxiom>>();
         model.concept_axioms = self.axioms.clone().into_iter()
-            .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
+            .filter(|a| a.axiom_type() == ABoxAxiomType::Concept)
             .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap().clone())
             .filter(|a| a.concept.concept_type() == ConceptType::Atomic)
+            .filter(|a| a.concept.downcast_ref::<AtomicConcept>().unwrap().name != "__TOP__")
             .map(|a| a.clone())
             .collect::<Vec<ConceptAxiom>>();
+        model.replacements = self.replacements.clone();
 
         model
+    }
+
+    // pub fn create_new_individual(&mut self) -> Individual {
+    //     let new_x = Individual {name: format!("x_#{}", abox.individuals.len())};
+
+    //     self.individuals.insert(new_x.clone());
+    //     self.add_top_axiom_for_individual(new_x);
+    // }
+
+    pub fn add_top_axiom_for_individual(&mut self, x: Individual) {
+        self.axioms.insert(Box::new(ConceptAxiom {
+            concept: Box::new(AtomicConcept {name: "__TOP__".to_string()}) as Box<dyn Concept>,
+            individual: x
+        }) as Box<dyn ABoxAxiom>);
+    }
+
+    pub fn add_individual(&mut self, x: Individual) {
+        self.individuals.insert(x.clone());
+        self.add_top_axiom_for_individual(x);
     }
 }
 
 impl fmt::Display for ABox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "ABox:\n  - {}", self.axioms.iter()
-            .map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
+        let axioms = self.axioms.iter()
+            .map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - ");
+        let individuals = self.individuals.iter()
+            .map(|x| x.to_string()).collect::<Vec<String>>().join(", ");
+        write!(fmt, "\nAxioms:\n  - {}\nIndividuals: {}", axioms, individuals)
     }
 }
 
@@ -112,6 +140,7 @@ pub struct Model {
     individuals: Vec<Individual>,
     concept_axioms: Vec<ConceptAxiom>,
     relation_axioms: Vec<RelationAxiom>,
+    replacements: HashMap<Individual, Individual>
 }
 
 impl Model {
@@ -120,6 +149,7 @@ impl Model {
             individuals: vec![],
             concept_axioms: vec![],
             relation_axioms: vec![],
+            replacements: HashMap::new()
         }
     }
 }
@@ -132,8 +162,11 @@ impl fmt::Display for Model {
             .map(|c| c.to_string()).collect::<Vec<String>>().join(", "));
         let relations = format!("Relations: {}", self.relation_axioms.iter()
             .map(|r| r.to_string()).collect::<Vec<String>>().join(", "));
+        let replacements = format!("Replacements: {}", self.replacements.iter()
+            .map(|(x, y)| format!("{} = {}", x.to_string(), y.to_string()))
+            .collect::<Vec<String>>().join(", "));
 
-        write!(fmt, "Model:\n - {}\n - {}\n - {}\n", individuals, concepts, relations)
+        write!(fmt, "Model:\n - {}\n - {}\n - {}\n - {}\n", individuals, concepts, relations, replacements)
     }
 }
 

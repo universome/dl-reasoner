@@ -118,7 +118,7 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
             subconcept: parse_concept(&concept_str[(&relation_name.len() + 1)..]),
             relation: Relation {name: relation_name}
         })
-    } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
+    } else if concept_str.len() > 3 && &concept_str[..2] == "<=" {
         // TODO: this is too similar to at-least concept parsing...
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
 
@@ -239,7 +239,7 @@ impl fmt::Display for Individual {
 }
 
 #[derive(Debug, Clone, Hash)]
-pub struct AtomicConcept { name: String }
+pub struct AtomicConcept { pub name: String }
 
 impl Concept for AtomicConcept {
     fn convert_to_nnf(&self) -> Box<dyn Concept> {
