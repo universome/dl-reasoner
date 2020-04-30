@@ -1,6 +1,8 @@
 use std::fmt;
 use std::hash;
 use std::collections::HashSet;
+use std::iter::FromIterator;
+
 use concept::{Concept, parse_concept};
 
 
@@ -25,7 +27,7 @@ pub fn parse_tbox(tbox_str: &str) -> TBox {
 pub fn parse_tbox_axiom(tbox_line: &str) -> TBoxAxiom {
     let tbox_line = tbox_line.trim();
     let delimiter = if tbox_line.contains("==") { "==" } else { "->" };
-    let axiom_type = if delimiter == "==" { TBoxAxiomType::Definition } else { TBoxAxiomType::Subsumption };
+    let axiom_type = if delimiter == "==" { TBoxAxiomType::Definition } else { TBoxAxiomType::Inclusion };
     let delimiter_idx = tbox_line.find(delimiter).unwrap();
 
     TBoxAxiom {
@@ -46,6 +48,44 @@ impl TBox {
     }
 }
 
+impl TBox {
+    pub fn expand_all_definitions(&mut self) {
+        // Expands all the definitions in such a way that we do not use
+        // definitions inside definitions
+        let mut definitions = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
+            .collect::<Vec<Box<TBoxAxiom>>>();
+        let mut definitions_updated = definitions.clone();
+        let mut processed_defs_lhs = HashSet::new();
+
+        while let Some(def) = definitions.pop() {
+            processed_defs_lhs.insert(def.lhs.clone());
+            // Expanding the definition in all the possible definitions
+            // After that we will not have this definition anywhere except for itself
+            definitions_updated = definitions_updated
+                .into_iter()
+                .clone()
+                .map(|d| {
+                    if def.lhs.to_string() == d.lhs.to_string() {
+                        Box::new(*d)
+                    } else {
+                        Box::new(TBoxAxiom {
+                            axiom_type: d.axiom_type.clone(),
+                            lhs: d.lhs.clone(),
+                            rhs: d.rhs.replace_concept(def.lhs.clone(), def.rhs.clone())
+                        })
+                    }
+                })
+                .collect::<Vec<Box<TBoxAxiom>>>();
+
+            definitions = definitions_updated.clone()
+                .into_iter()
+                .filter(|d| processed_defs_lhs.contains(&d.lhs))
+                .collect();
+        }
+    }
+}
+
 impl fmt::Display for TBox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "TBox:\n  - {}", self.axioms.iter()
@@ -54,7 +94,7 @@ impl fmt::Display for TBox {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub enum TBoxAxiomType { Definition, Subsumption }
+pub enum TBoxAxiomType { Definition, Inclusion }
 
 #[derive(Debug, Clone, Eq)]
 pub struct TBoxAxiom {
