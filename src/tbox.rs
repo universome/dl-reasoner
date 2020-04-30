@@ -87,7 +87,7 @@ impl TBox {
     }
 
     pub fn apply_definitions_to_abox(&self, abox: &mut ABox) {
-        let mut definitions = self.axioms.clone().into_iter()
+        let definitions = self.axioms.clone().into_iter()
             .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
             .collect::<Vec<Box<TBoxAxiom>>>();
 
@@ -111,9 +111,21 @@ impl TBox {
         }))
     }
 
-    // pub fn apply_definitions_to_gcis(&self) {
+    pub fn apply_definitions_to_inclusions(&mut self) {
+        let definitions = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
+            .collect::<Vec<Box<TBoxAxiom>>>();
+        let mut inclusions = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type == TBoxAxiomType::Inclusion)
+            .collect::<Vec<Box<TBoxAxiom>>>();
 
-    // }
+        for inclusion in &mut inclusions {
+            for def in &definitions {
+                inclusion.lhs = inclusion.lhs.replace_concept(def.lhs.clone(), def.rhs.clone());
+                inclusion.rhs = inclusion.rhs.replace_concept(def.lhs.clone(), def.rhs.clone());
+            }
+        }
+    }
 
     // pub fn aggregate_inclusions(&self) {
 
