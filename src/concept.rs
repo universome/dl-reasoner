@@ -62,58 +62,69 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         // Our concept is wrapped up into brackets "(..)"
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
-        // debug!("It is and!");
         Box::new(ConjunctionConcept { subconcepts: extract_concepts(&concept_str[3..]) })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
-        // debug!("It is or!");
         Box::new(DisjunctionConcept { subconcepts: extract_concepts(&concept_str[2..]) })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
-        // debug!("It is only!");
+        let space_idx = concept_str[5..].chars().position(|c| c == ' ').unwrap();
+        let relation_name = concept_str[..space_idx].to_string();
+
         Box::new(OnlyConcept {
-            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            subconcept: parse_concept(&concept_str[6..])
+            subconcept: parse_concept(&concept_str[(5 + &relation_name.len() + 1)..]),
+            relation: Relation {name: relation_name},
         })
     } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
-        // debug!("It is some!");
+        let space_idx = concept_str[5..].chars().position(|c| c == ' ').unwrap();
+        let relation_name = concept_str[..space_idx].to_string();
+
         Box::new(SomeConcept {
-            relation: Relation {name: concept_str.chars().nth(5).unwrap().to_string()},
-            subconcept: parse_concept(&concept_str[6..])
+            subconcept: parse_concept(&concept_str[(5 + &relation_name.len() + 1)..]),
+            relation: Relation {name: relation_name},
         })
     } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
-        debug!("It is not!");
         Box::new(NotConcept { subconcept: parse_concept(&concept_str[3..]) })
     } else if concept_str.len() > 2 && &concept_str[..2] == ">=" {
-        debug!("It is at_least!");
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
-        let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..delim_idx].parse::<usize>().unwrap();
-        let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
 
-        debug!("AtLeast amount: {}", amount);
-        debug!("AtLeast relation_name: {}", relation_name);
+        // Extract amount
+        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let amount = concept_str[..space_idx].parse::<usize>().unwrap();
+
+        // Extract relation name
+        let concept_str = concept_str[space_idx..].trim(); // Has the form "relation Concept" now
+        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let relation_name = concept_str[..space_idx].to_string();
+
+        debug!("AtMost amount: {}", amount);
+        debug!("AtMost relation_name: {}", relation_name);
 
         Box::new(AtLeastConcept {
             amount: amount,
-            relation: Relation {name: relation_name},
-            subconcept: parse_concept(&concept_str[delim_idx + 3..])
+            subconcept: parse_concept(&concept_str[(&relation_name.len() + 1)..]),
+            relation: Relation {name: relation_name}
         })
     } else if concept_str.len() > 3 && &concept_str[..3] == "not" {
-        debug!("It is at_most!");
+        // TODO: this is too similar to at-least concept parsing...
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
-        let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..delim_idx].parse::<usize>().unwrap();
-        let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
+
+        // Extract amount
+        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let amount = concept_str[..space_idx].parse::<usize>().unwrap();
+
+        // Extract relation name
+        let concept_str = concept_str[space_idx..].trim(); // Has the form "myRelation MyConcept" now
+        let space_idx = concept_str.chars().position(|c| c == ' ').unwrap();
+        let relation_name = concept_str[..space_idx].to_string();
 
         debug!("AtMost amount: {}", amount);
         debug!("AtMost relation_name: {}", relation_name);
 
         Box::new(AtMostConcept {
             amount: amount,
-            relation: Relation {name: relation_name},
-            subconcept: parse_concept(&concept_str[delim_idx + 3..])
+            subconcept: parse_concept(&concept_str[(&relation_name.len() + 1)..]),
+            relation: Relation {name: relation_name}
         })
     } else {
-        debug!("It is an atomic concept!");
         // This is an Atomic Concept!
         Box::new(AtomicConcept { name: concept_str.to_string() })
     }
