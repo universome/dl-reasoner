@@ -181,6 +181,11 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     }
 
     for axiom in some_axioms {
+        if check_if_blocked(abox, &axiom.individual) {
+            debug!("Tried to expand {}, but it is blocked.", axiom);
+            return None;
+        }
+
         let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();
         let rhs_individuals = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
         debug!("Found rhs individuals: {}", rhs_individuals.iter()
@@ -197,7 +202,7 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
             continue;
         }
 
-        let new_individual = Individual { name: format!("x_{}", abox.individuals.len()) };
+        let new_individual = Individual { name: format!("x_#{}", abox.individuals.len()) };
         debug!("Creating new individual: {}", new_individual.name);
 
         let new_axiom = Box::new(ConceptAxiom {
@@ -235,6 +240,12 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         .iter()
         .find(|a| {
             let concept = a.concept.downcast_ref::<AtLeastConcept>().unwrap();
+
+            if check_if_blocked(abox, &a.individual) {
+                debug!("Tried to expand {}, but it is blocked.", a);
+                return false;
+            }
+
             let possible_rhs: HashSet<Individual> = HashSet::from_iter(
                 extract_rhs_for_relation(&concept.relation, &a.individual, abox).iter().cloned());
 
@@ -267,7 +278,7 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
     let mut new_individuals = HashSet::new();
 
     for _ in 0..concept.amount {
-        let new_individual = Individual { name: format!("x_{}", new_abox.individuals.len()) };
+        let new_individual = Individual { name: format!("x_#{}", new_abox.individuals.len()) };
         debug!("Creating new individual: {}", new_individual.name);
 
         // Adding the concept
@@ -424,8 +435,8 @@ fn extract_concept_axioms<'a>(abox: &'a ABox, concept_type: ConceptType) -> Vec<
 
 fn create_new_axioms(concepts: Vec<Box<dyn Concept>>,
                      individual: Individual, abox: &ABox) -> Vec<Box<dyn ABoxAxiom>> {
-
-    concepts.into_iter()
+    concepts
+        .into_iter()
         // Convert to an axiom
         .map(|sc| ConceptAxiom {concept: sc, individual: individual.clone() })
         .map(|a| Box::new(a) as Box<dyn ABoxAxiom>)
@@ -452,6 +463,31 @@ fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, abox: &ABox) ->
     }
 
     new_abox
+}
+
+
+fn check_if_blocked(abox: &ABox, y: &Individual) -> bool {
+    /// Checks if the individual x is blocked by some other individual
+    abox.individuals
+        .iter()
+        .filter(|x| x != &y)
+        .find(|x| is_blocking(abox, x, y))
+        .is_none()
+}
+
+
+fn is_blocking(abox: &ABox, lhs: &Individual, rhs: &Individual) -> bool {
+    // Checks if the individual rhs is blocked by an individual lhs
+    // If lhs is younger, then it cannot block rhs
+    !lhs.is_younger(rhs) && abox.axioms
+        .iter()
+        .map(|a| a.downcast_ref::<ConceptAxiom>().unwrap())
+        .filter(|ca| &ca.individual == rhs)
+        .map(|ca| Box::new(ConceptAxiom {
+            concept: ca.concept.clone(),
+            individual: lhs.clone()
+        }) as Box<dyn ABoxAxiom>)
+        .all(|ca| abox.axioms.contains(&ca))
 }
 
 

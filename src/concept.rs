@@ -184,6 +184,25 @@ impl fmt::Display for Relation {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Individual { pub name: String }
 
+
+impl Individual {
+    pub fn is_younger(&self, other: &Individual) -> bool {
+        // Checks if lhs is possible younger than other
+
+        if !self.name.starts_with("_#") {
+            return false; // This is an original (ancient) individual
+        } else if other.name.starts_with("_#") {
+            return true;
+        } else {
+            let self_num = self.name[3..].parse::<usize>().unwrap();
+            let rhs_num = other.name[3..].parse::<usize>().unwrap();
+
+            // greater number => self has appeared later
+            self_num > rhs_num
+        }
+    }
+}
+
 impl fmt::Display for Individual {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
