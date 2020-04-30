@@ -1,0 +1,4 @@
+hasChild[joe, ann]
+hasChild[joe, eva]
+hasChild[joe, mary]
+ParentWithMax2Children[joe]

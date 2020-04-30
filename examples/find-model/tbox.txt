@@ -1,0 +1,1 @@
+ParentWithMax2Children == (<= 2 hasChild __TOP__)
