@@ -61,21 +61,24 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
 
     if &concept_str[..1] == "(" {
         // Our concept is wrapped up into brackets "(..)"
+        // debug!("Parsing concept result: {}", parse_concept(&concept_str[1..(concept_str.len() - 1)]));
         parse_concept(&concept_str[1..(concept_str.len() - 1)])
     } else if concept_str.len() > 3 && &concept_str[..3] == "and" {
         // Concept has the format "and (A B C)"
         let subconcepts = extract_concepts(&concept_str[5..concept_str.len()-1]);
         assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
+        // debug!("Parsing concept result: {}", Box::new(ConjunctionConcept { subconcepts: subconcepts.clone() }));
         Box::new(ConjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 2 && &concept_str[..2] == "or" {
         // Concept has the format "or (A B C)"
         let subconcepts = extract_concepts(&concept_str[4..concept_str.len()-1]);
         assert!(subconcepts.len() >= 2, "Too few subconcepts inside a conjunction concept: {}", concept_str);
+        // debug!("Parsing concept result: {}", Box::new(DisjunctionConcept { subconcepts: subconcepts.clone() }));
         Box::new(DisjunctionConcept { subconcepts: subconcepts })
     } else if concept_str.len() > 4 && &concept_str[..4] == "only" {
         let space_idx = concept_str[5..].chars().position(|c| c == ' ')
             .expect(&format!("Bad format for `only` concept: {}", concept_str));
-        let relation_name = concept_str[..space_idx].to_string();
+        let relation_name = concept_str[5..5 + space_idx].to_string();
 
         Box::new(OnlyConcept {
             subconcept: parse_concept(&concept_str[(5 + &relation_name.len() + 1)..]),
@@ -84,7 +87,7 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
     } else if concept_str.len() > 4 && &concept_str[..4] == "some" {
         let space_idx = concept_str[5..].chars().position(|c| c == ' ')
             .expect(&format!("Bad format for `only` concept: {}", concept_str));
-        let relation_name = concept_str[..space_idx].to_string();
+        let relation_name = concept_str[5..5 + space_idx].to_string();
 
         Box::new(SomeConcept {
             subconcept: parse_concept(&concept_str[(5 + &relation_name.len() + 1)..]),
@@ -452,7 +455,7 @@ impl Concept for OnlyConcept {
 
 impl fmt::Display for OnlyConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "only {} {}", self.relation.name, self.subconcept)
+        write!(fmt, "only {} ({})", self.relation.name, self.subconcept)
     }
 }
 
@@ -485,7 +488,7 @@ impl Concept for SomeConcept {
 
 impl fmt::Display for SomeConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "some {} {}", self.relation.name, self.subconcept)
+        write!(fmt, "some {} ({})", self.relation.name, self.subconcept)
     }
 }
 
@@ -521,7 +524,7 @@ impl Concept for AtLeastConcept {
 
 impl fmt::Display for AtLeastConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, ">= {} {} {}", self.amount, self.relation.name, self.subconcept)
+        write!(fmt, ">= {} {} ({})", self.amount, self.relation.name, self.subconcept)
     }
 }
 
@@ -557,7 +560,7 @@ impl Concept for AtMostConcept {
 
 impl fmt::Display for AtMostConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "<= {} {} {}", self.amount, self.relation.name, self.subconcept)
+        write!(fmt, "<= {} {} ({})", self.amount, self.relation.name, self.subconcept)
     }
 }
 
