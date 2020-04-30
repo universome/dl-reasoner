@@ -19,6 +19,15 @@ For more information on ALCQ and the corresponding tableau algorithm refer to [A
 - Concept definitions and concept subsumptions in TBox
 - Blocking with order (to prevent cycling blocking)
 
+### Installation
+To install the library, you should first [install rust and cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+After that, just pull the project and build it with cargo (omit `--realease` flag if you want to build a debug version):
+```
+git clone https://github.com/universome/dl-reasoner
+cd dl-reasoner
+cargo build --release
+```
+
 ### TODO
 - tests
 - print error messages instead of just panicking
