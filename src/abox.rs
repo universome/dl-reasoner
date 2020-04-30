@@ -57,7 +57,7 @@ pub fn add_abox_axiom(abox: &mut ABox, axiom_str: &str) {
 }
 
 
-pub fn remove_non_atomic_concepts(abox: &ABox) -> ABox {
+pub fn remove_non_primitive_concepts(abox: &ABox) -> ABox {
     let mut new_abox = abox.clone();
     let non_atomic_axioms = abox.axioms.clone().into_iter()
         .filter(|a| {

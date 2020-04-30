@@ -23,27 +23,27 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
         }
 
         if curr_depth == 0 {
-            debug!("Found a concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
-            concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
-            curr_concept_start_idx = i + 1; // Next concept starts on the next character
-            i += 1;
+            // Ok, we should extract something, but we have two alternatives:
+            // - this is a compound concept of the form "(My .. Compound .. Concept)"
+            // - this is an atomic concept of the form "MyConcept"
+            if &concepts_str[curr_concept_start_idx .. curr_concept_start_idx + 1] == "(" {
+                assert!(&concepts_str[i..i + 1] == ")", "Compound concept is in a bad format: {}", concepts_str);
+                debug!("Found a compound concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
+                concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
+                curr_concept_start_idx = i + 1; // Next concept starts on the next character
+            } else {
+                debug!("Found an atomic concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
+                let space_idx = concepts_str[curr_concept_start_idx..].chars().position(|c| c == ' ')
+                    .unwrap_or(concepts_str.len() - curr_concept_start_idx);
+                concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..(curr_concept_start_idx + space_idx)]));
+                curr_concept_start_idx += space_idx + 1; // Next concept starts on the next character
+            }
+
+            i = curr_concept_start_idx;
         }
 
         i += 1;
     }
-    // for (i, c) in concepts_str.chars().enumerate() {
-    //     if c == '(' {
-    //         curr_depth += 1; // Going a level deeper
-    //     } else if c == ')' {
-    //         curr_depth -= 1; // Going a level out
-    //     }
-
-    //     if curr_depth == 0 {
-    //         debug!("Found concept: {}", &concepts_str[curr_concept_start_idx..i+1]);
-    //         concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..i+1]));
-    //         curr_concept_start_idx = i; // Next concept starts on the next character
-    //     }
-    // }
 
     debug_assert!(concepts.len() > 0);
 
