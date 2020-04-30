@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 
 use abox::{ABox, ABoxAxiom, ABoxAxiomType, ConceptAxiom};
-use concept::{Concept, parse_concept};
+use concept::{Concept, ConjunctionConcept, DisjunctionConcept, parse_concept};
 
 
 pub fn parse_tbox(tbox_str: &str) -> TBox {
@@ -127,9 +127,23 @@ impl TBox {
         }
     }
 
-    // pub fn aggregate_inclusions(&self) {
+    pub fn aggregate_inclusions(&self) -> Option<ConjunctionConcept> {
+        let inclusions = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type == TBoxAxiomType::Inclusion)
+            .collect::<Vec<Box<TBoxAxiom>>>();
 
-    // }
+        if inclusions.is_empty() {
+            return None;
+        }
+
+        let subconcepts = inclusions
+            .into_iter()
+            .map(|ta| {DisjunctionConcept {subconcepts: vec![ta.lhs.negate(), ta.rhs]}})
+            .map(|a| Box::new(a) as Box<dyn Concept>)
+            .collect::<Vec<Box<dyn Concept>>>();
+
+        Some(ConjunctionConcept {subconcepts: subconcepts})
+    }
 }
 
 impl fmt::Display for TBox {
