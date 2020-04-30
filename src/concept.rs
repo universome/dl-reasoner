@@ -8,17 +8,16 @@ use std::marker::Sized;
 fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
     // Takes a concepts string, seperated by whitespace and wrapped up in brackets,
     // parses them individually and returns a vector of concepts.
-    let concepts_str = concepts_str.trim();
+    let mut concepts_str = concepts_str.trim();
     debug!("Extracting concepts: {}", concepts_str);
     let mut concepts: Vec<Box<dyn Concept>> = Vec::new();
     let mut curr_depth = 0;
-    let mut curr_concept_start_idx = 0;
     let mut i = 0;
 
-    while i < concepts_str.len() {
-        if &concepts_str[i..i + 1] == "(" {
+    while concepts_str.len() > 0 {
+        if &concepts_str[i..(i+1)] == "(" {
             curr_depth += 1; // Going a level deeper
-        } else if &concepts_str[i..i + 1] == ")" {
+        } else if &concepts_str[i..(i+1)] == ")" {
             curr_depth -= 1; // Going a level out
         }
 
@@ -26,23 +25,25 @@ fn extract_concepts(concepts_str: &str) -> Vec<Box<dyn Concept>> {
             // Ok, we should extract something, but we have two alternatives:
             // - this is a compound concept of the form "(My .. Compound .. Concept)"
             // - this is an atomic concept of the form "MyConcept"
-            if &concepts_str[curr_concept_start_idx .. curr_concept_start_idx + 1] == "(" {
-                assert!(&concepts_str[i..i + 1] == ")", "Compound concept is in a bad format: {}", concepts_str);
-                debug!("Found a compound concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
-                concepts.push(parse_concept(&concepts_str[curr_concept_start_idx .. i + 1]));
-                curr_concept_start_idx = i + 1; // Next concept starts on the next character
+            let concept_str;
+
+            if &concepts_str[..1] == "(" {
+                assert!(&concepts_str[i..(i+ 1)] == ")", "Compound concept is in a bad format: {}", concepts_str);
+                concept_str = &concepts_str[..(i+1)];
+                debug!("Found a compound concept: {}", concept_str);
+                concepts.push(parse_concept(concept_str));
             } else {
-                debug!("Found an atomic concept: {}", &concepts_str[curr_concept_start_idx .. i + 1]);
-                let space_idx = concepts_str[curr_concept_start_idx..].chars().position(|c| c == ' ')
-                    .unwrap_or(concepts_str.len() - curr_concept_start_idx);
-                concepts.push(parse_concept(&concepts_str[curr_concept_start_idx..(curr_concept_start_idx + space_idx)]));
-                curr_concept_start_idx += space_idx + 1; // Next concept starts on the next character
+                let space_idx = concepts_str.chars().position(|c| c == ' ').unwrap_or(concepts_str.len());
+                concept_str = &concepts_str[..space_idx];
+                debug!("Found an atomic concept: {}", concept_str);
+                concepts.push(parse_concept(concept_str));
             }
 
-            i = curr_concept_start_idx;
+            i = 0;
+            concepts_str = concepts_str[concept_str.len()..].trim();
+        } else {
+            i += 1;
         }
-
-        i += 1;
     }
 
     debug_assert!(concepts.len() > 0);
