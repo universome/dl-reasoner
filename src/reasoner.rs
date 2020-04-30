@@ -10,10 +10,6 @@ pub fn tableau_reasoning(abox: ABox, super_concept: Option<Box<dyn Concept>>) ->
     debug!("\n\n<======== Starting tableau algorithm ========>\n");
     let mut aboxes = vec![abox];
 
-    // TODO: check initial abox for consistency for O(n)
-    // just to see that it does not contain immediate inconsistencies
-    // Otherwise, we can feed abox via AND rule. Then we can skip the todo above.
-
     while aboxes.len() > 0 {
         debug!("Current number of aboxes: {}", aboxes.len());
         let abox = aboxes.pop().unwrap();
