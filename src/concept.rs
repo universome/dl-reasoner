@@ -217,18 +217,17 @@ pub struct Individual { pub name: String }
 
 impl Individual {
     pub fn is_younger(&self, other: &Individual) -> bool {
-        // Checks if lhs is possible younger than other
-
-        if !self.name.starts_with("x_#") {
-            return false; // This is an original (ancient) individual
-        } else if other.name.starts_with("x_#") {
-            return true;
-        } else {
+        // Checks if lhs is possibly younger than `other`
+        if self.name.starts_with("x_#") && other.name.starts_with("x_#") {
             let self_num = self.name[3..].parse::<usize>().unwrap();
             let rhs_num = other.name[3..].parse::<usize>().unwrap();
 
-            // greater number => self has appeared later
+            // smaller number => rhs has appeared earlier => it is older
             self_num > rhs_num
+        } else if self.name.starts_with("x_#") {
+            return true; // self is an auto-generated variable
+        } else {
+            return false; // self is an original (ancient) individual
         }
     }
 }
