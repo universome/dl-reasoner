@@ -86,7 +86,7 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         debug!("It is at_least!");
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
         let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..delim_idx].parse::<u32>().unwrap();
+        let amount = concept_str[..delim_idx].parse::<usize>().unwrap();
         let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
 
         debug!("AtLeast amount: {}", amount);
@@ -101,7 +101,7 @@ pub fn parse_concept(concept_str: &str) -> Box<dyn Concept> {
         debug!("It is at_most!");
         let concept_str = concept_str[2..].trim(); // Has the from "2 r C" now
         let delim_idx = concept_str.chars().position(|c| c == ' ').unwrap();
-        let amount = concept_str[..delim_idx].parse::<u32>().unwrap();
+        let amount = concept_str[..delim_idx].parse::<usize>().unwrap();
         let relation_name = concept_str.chars().nth(delim_idx + 1).unwrap().to_string();
 
         debug!("AtMost amount: {}", amount);
@@ -295,7 +295,8 @@ pub struct ConjunctionConcept {
 
 impl fmt::Display for ConjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "and {}", self.subconcepts.iter().map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
+        write!(fmt, "and {}", self.subconcepts.iter()
+            .map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
     }
 }
 
@@ -316,7 +317,8 @@ pub struct DisjunctionConcept {
 
 impl fmt::Display for DisjunctionConcept {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "or {}", self.subconcepts.iter().map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
+        write!(fmt, "or {}", self.subconcepts.iter()
+            .map(|sc| format!("({})", sc.to_string())).collect::<Vec<String>>().join(" "))
     }
 }
 
@@ -378,7 +380,7 @@ impl Concept for SomeConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct AtLeastConcept {
-    pub amount: u32,
+    pub amount: usize,
     pub relation: Relation,
     pub subconcept: Box<dyn Concept>
 }
@@ -403,7 +405,7 @@ impl Concept for AtLeastConcept {
 
 #[derive(Debug, Clone, Hash)]
 pub struct AtMostConcept {
-    pub amount: u32,
+    pub amount: usize,
     pub relation: Relation,
     pub subconcept: Box<dyn Concept>
 }

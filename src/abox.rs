@@ -102,7 +102,8 @@ impl ABox {
 
 impl fmt::Display for ABox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "ABox:\n  - {}", self.axioms.iter().map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
+        write!(fmt, "ABox:\n  - {}", self.axioms.iter()
+            .map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
     }
 }
 

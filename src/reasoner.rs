@@ -149,7 +149,7 @@ fn apply_only_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 
     for axiom in only_axioms {
         let concept = axiom.concept.downcast_ref::<OnlyConcept>().unwrap();
-        let other_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        let other_individuals = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
         let new_axiom = other_individuals
             .into_iter()
             .map(|y| Box::new(ConceptAxiom {
@@ -182,8 +182,9 @@ fn apply_some_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
 
     for axiom in some_axioms {
         let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();
-        let rhs_individuals = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
-        debug!("Found rhs individuals: {}", rhs_individuals.iter().map(|x| x.name.to_string()).collect::<Vec<String>>().join(" "));
+        let rhs_individuals = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
+        debug!("Found rhs individuals: {}", rhs_individuals.iter()
+            .map(|x| x.name.to_string()).collect::<Vec<String>>().join(" "));
         let rhs_concept_axiom = rhs_individuals
             .into_iter()
             .map(|y| Box::new(ConceptAxiom {
@@ -234,11 +235,12 @@ fn apply_at_least_rule(abox: &ABox, tbox: &TBox) -> Option<ABox> {
         .iter()
         .find(|a| {
             let concept = a.concept.downcast_ref::<AtLeastConcept>().unwrap();
-            let possible_rhs: HashSet<Individual> = HashSet::from_iter(extract_relation_rhs_individuals(&concept.relation, &a.individual, abox).iter().cloned());
+            let possible_rhs: HashSet<Individual> = HashSet::from_iter(
+                extract_rhs_for_relation(&concept.relation, &a.individual, abox).iter().cloned());
 
             // Searching for a set of pairwise different individuals that would satisfy the constraints
             abox.pairwise_different_individuals.iter().find(|&diff_individuals| {
-                if (diff_individuals.len() as u32) < concept.amount {
+                if diff_individuals.len() < concept.amount {
                     return false;
                 }
 
@@ -305,9 +307,14 @@ fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
 
     for axiom in at_most_axioms {
         let concept = axiom.concept.downcast_ref::<AtMostConcept>().unwrap();
-        let others = extract_relation_rhs_individuals(&concept.relation, &axiom.individual, abox);
+        let others = extract_rhs_for_relation(&concept.relation, &axiom.individual, abox);
         let others_with_concept = filter_by_concept(others, &concept.subconcept, abox);
-        let mut possible_replacements = HashMap::new();
+
+        if others_with_concept.len() < concept.amount + 1 {
+            continue;
+        }
+
+        let mut replacements = HashMap::new();
 
         for y in others_with_concept.clone() {
             // Finding those individuals that do not have y ≠ z relation
@@ -324,20 +331,33 @@ fn apply_at_most_rule(abox: &ABox, tbox: &TBox) -> Vec<ABox> {
             }).collect::<Vec<Individual>>();
 
             if !can_be_equal_to_y.is_empty() {
-                possible_replacements.insert(y, can_be_equal_to_y);
+                replacements.insert(y, can_be_equal_to_y);
             }
         }
 
-        if possible_replacements.is_empty() {
+        if replacements.len() < concept.amount + 1 {
             continue;
         }
 
         debug!("We have found an AtMost axiom, which can be expanded: {}", axiom);
 
+        // Now, we should keep only n+1 replacements (knowing, that inequality relation is symmetric)
+        let mut variables_to_keep: HashSet<Individual> = HashSet::from_iter(replacements
+            .keys().map(|k| k.clone()).collect::<Vec<Individual>>()[..concept.amount+1].iter().cloned());
+
+        for x_old in replacements.clone().keys() {
+            if variables_to_keep.contains(x_old) {
+                replacements.insert(x_old.clone(), replacements[x_old].clone()
+                    .into_iter().filter(|x| variables_to_keep.contains(&x)).collect());
+            } else {
+                replacements.remove(x_old);
+            }
+        }
+
         let mut new_aboxes = vec![];
 
-        for (x_old, replacements) in possible_replacements {
-            for x_new in replacements {
+        for (x_old, xs_new) in replacements {
+            for x_new in xs_new {
                 new_aboxes.push(replace_individual_in_abox(abox, x_old.clone(), x_new));
             }
         }
@@ -362,7 +382,9 @@ fn extract_concept_axioms<'a>(abox: &'a ABox, concept_type: ConceptType) -> Vec<
 }
 
 
-fn create_new_axioms(concepts: Vec<Box<dyn Concept>>, individual: Individual, abox: &ABox) -> Vec<Box<dyn ABoxAxiom>> {
+fn create_new_axioms(concepts: Vec<Box<dyn Concept>>,
+                     individual: Individual, abox: &ABox) -> Vec<Box<dyn ABoxAxiom>> {
+
     concepts.into_iter()
         // Convert to an axiom
         .map(|sc| ConceptAxiom {concept: sc, individual: individual.clone() })
@@ -393,7 +415,7 @@ fn create_new_abox_from_concept_axiom(axiom: Box<dyn ABoxAxiom>, abox: &ABox) ->
 }
 
 
-fn extract_relation_rhs_individuals(relation: &Relation, individual: &Individual, abox: &ABox) -> Vec<Individual> {
+fn extract_rhs_for_relation(relation: &Relation, individual: &Individual, abox: &ABox) -> Vec<Individual> {
     return abox.axioms
         .iter()
         .filter(|a| a.axiom_type() == ABoxAxiomType::Relation)
@@ -419,7 +441,8 @@ fn is_at_least_concept_valid(abox: &ABox, individual: &Individual, concept: &AtL
 }
 
 
-fn filter_by_concept(individuals: Vec<Individual>, concept: &Box<dyn Concept>, abox: &ABox) -> Vec<Individual> {
+fn filter_by_concept(individuals: Vec<Individual>,
+                     concept: &Box<dyn Concept>, abox: &ABox) -> Vec<Individual> {
     individuals
         .into_iter()
         .filter(|x| {

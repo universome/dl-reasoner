@@ -48,7 +48,8 @@ impl TBox {
 
 impl fmt::Display for TBox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "TBox:\n  - {}", self.axioms.iter().map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
+        write!(fmt, "TBox:\n  - {}", self.axioms.iter()
+            .map(|a| a.to_string()).collect::<Vec<String>>().join("\n  - "))
     }
 }
 
