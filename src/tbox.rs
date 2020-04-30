@@ -51,16 +51,17 @@ impl TBox {
 
 impl TBox {
     pub fn expand_all_definitions(&mut self) {
+        info!("Expanding TBox definitions...");
         // Expands all the definitions in such a way that we do not use
         // definitions inside definitions
         let mut definitions = self.axioms.clone().into_iter()
             .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
             .collect::<Vec<Box<TBoxAxiom>>>();
         let mut definitions_updated = definitions.clone();
-        let mut processed_defs_lhs = HashSet::new();
+        let mut applied_defs = HashSet::new();
 
         while let Some(def) = definitions.pop() {
-            processed_defs_lhs.insert(def.lhs.clone());
+            applied_defs.insert(def.lhs.clone());
             // Expanding the definition in all the possible definitions
             // After that we will not have this definition anywhere except for itself
             definitions_updated = definitions_updated
@@ -81,12 +82,13 @@ impl TBox {
 
             definitions = definitions_updated.clone()
                 .into_iter()
-                .filter(|d| processed_defs_lhs.contains(&d.lhs))
+                .filter(|d| {!applied_defs.contains(&d.lhs)})
                 .collect();
         }
     }
 
     pub fn apply_definitions_to_abox(&self, abox: &mut ABox) {
+        info!("Applying expanded TBox definitions to an ABox...");
         let definitions = self.axioms.clone().into_iter()
             .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
             .collect::<Vec<Box<TBoxAxiom>>>();
@@ -112,6 +114,7 @@ impl TBox {
     }
 
     pub fn apply_definitions_to_inclusions(&mut self) {
+        info!("Applying expanded TBox definitions to GCIs...");
         let definitions = self.axioms.clone().into_iter()
             .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
             .collect::<Vec<Box<TBoxAxiom>>>();
@@ -128,6 +131,7 @@ impl TBox {
     }
 
     pub fn aggregate_inclusions(&self) -> Option<ConjunctionConcept> {
+        info!("Aggregating GCIs into a single one...");
         let inclusions = self.axioms.clone().into_iter()
             .filter(|a| a.axiom_type == TBoxAxiomType::Inclusion)
             .collect::<Vec<Box<TBoxAxiom>>>();
