@@ -3,6 +3,7 @@ use std::hash;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
+use abox::{ABox, ABoxAxiom, ABoxAxiomType, ConceptAxiom};
 use concept::{Concept, parse_concept};
 
 
@@ -84,6 +85,39 @@ impl TBox {
                 .collect();
         }
     }
+
+    pub fn apply_definitions_to_abox(&self, abox: &mut ABox) {
+        let mut definitions = self.axioms.clone().into_iter()
+            .filter(|a| a.axiom_type == TBoxAxiomType::Definition)
+            .collect::<Vec<Box<TBoxAxiom>>>();
+
+        abox.axioms = HashSet::from_iter(abox.axioms.clone().iter().map(|a| {
+            match a.axiom_type() {
+                ABoxAxiomType::Relation => a.clone(),
+                ABoxAxiomType::Concept => {
+                    let axiom = a.downcast_ref::<ConceptAxiom>().unwrap();
+                    let replaced_concept = definitions.clone()
+                        .iter()
+                        .fold(axiom.concept.clone(), |c, def| {
+                            c.replace_concept(def.lhs.clone(), def.rhs.clone())
+                        });
+
+                    Box::new(ConceptAxiom {
+                        concept: replaced_concept,
+                        individual: axiom.individual.clone()
+                    }) as Box<dyn ABoxAxiom>
+                },
+            }
+        }))
+    }
+
+    // pub fn apply_definitions_to_gcis(&self) {
+
+    // }
+
+    // pub fn aggregate_inclusions(&self) {
+
+    // }
 }
 
 impl fmt::Display for TBox {
