@@ -1,0 +1,7 @@
+r[a,b]
+r[b,d]
+r[d,c]
+r[a,c]
+r[c,d]
+A[d]
+(not (some r (or ((and ((A) (some r A))) (and ((not A) (some r (some r (not A)))))))))[a]
