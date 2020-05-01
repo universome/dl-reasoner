@@ -163,6 +163,9 @@ gives output:
 Which means that `a` is not an instance of that concept.
 
 ## Checking subsumption
+In the examples below we will assume that our "real" TBox is empty.
+If you want ot use a non-empty one, then you should add the relevant definitions and negated GCIs into the same tbox.txt file with your subsumption (sorry for that).
+
 ### Example 1
 Imagine, that we want to check consistency of the following subsumption with respect to an empty TBox:
 ```
