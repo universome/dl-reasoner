@@ -193,7 +193,7 @@ fn apply_some_rule(abox: &ABox) -> Option<ABox> {
     for axiom in some_axioms {
         if let Some(x) = find_blocker(abox, &axiom.individual) {
             debug!("Tried to expand {}, but it is blocked by {}.", axiom, x);
-            return None;
+            continue;
         }
 
         let concept = axiom.concept.downcast_ref::<SomeConcept>().unwrap();

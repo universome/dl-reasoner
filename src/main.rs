@@ -76,7 +76,6 @@ fn run_reasoner() {
             }
         },
         "check-subsumption" => {
-
             // Initialzing TBox
             let tbox_filename = &args[2];
             let tbox_file_contents = fs::read_to_string(tbox_filename).unwrap();
@@ -91,17 +90,16 @@ fn run_reasoner() {
             // Initialzing ABox
             let mut abox = abox::ABox::new();
             let x = concept::Individual {name: "a".to_string()};
-            let super_concept = Box::new(super_gci.clone().unwrap()) as Box<dyn concept::Concept>;
-            let super_concept = super_concept.negate().convert_to_nnf();
+            let subsumption = Box::new(super_gci.clone().unwrap()) as Box<dyn concept::Concept>;
+            let subsumption_negated = subsumption.negate().convert_to_nnf();
             abox.add_individual(x.clone());
-            abox.axioms.insert(Box::new(abox::ConceptAxiom {
-                concept: super_concept.clone(),
-                individual: x,
-            }) as Box<dyn abox::ABoxAxiom>);
 
-            match reasoner::tableau_reasoning(abox, Some(super_concept)) {
-                None => info!("Subsimption is valid."),
-                Some(a) => info!("Subsimption is not valid.")
+            match reasoner::tableau_reasoning(abox, Some(subsumption_negated)) {
+                None => info!("Subsumption is valid."),
+                Some(a) => {
+                    info!("Subsumption is not valid.");
+                    info!("Here is the model of its controversial: {}", a.extract_model());
+                }
             }
         },
         _ => panic!("Error: unknown command: {}", command)
